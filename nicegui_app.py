@@ -1001,11 +1001,43 @@ def page_settings():
             ).classes("text-white")
 
         # ── OpenRouter settings ───────────────────────────────────────
+        _OR_MODELS = [
+            "nvidia/nemotron-3-super-120b-a12b:free",
+            "qwen/qwen3-235b-a22b:free",
+            "qwen/qwen3-30b-a3b:free",
+            "qwen/qwen3.6-plus-preview:free",
+            "meta-llama/llama-4-maverick:free",
+            "meta-llama/llama-4-scout:free",
+            "deepseek/deepseek-r1:free",
+            "google/gemma-3-27b-it:free",
+            "mistralai/mistral-small-3.2-24b-instruct:free",
+            "自訂…",
+        ]
         with ui.card().classes("w-full bg-gray-800 p-4 gap-3") as or_card:
             ui.label("☁ OpenRouter 設定").classes("text-lg font-semibold text-blue-300")
             or_key   = ui.input(label="API Key", value=config.OPENROUTER_API_KEY,
                                  password=True, password_toggle_button=True).classes("w-full")
-            or_model = ui.input(label="文字模型", value=config.OPENROUTER_MODEL).classes("w-full")
+            _init_model = config.OPENROUTER_MODEL if config.OPENROUTER_MODEL in _OR_MODELS else "自訂…"
+            or_model_sel = ui.select(
+                _OR_MODELS,
+                value=_init_model,
+                label="文字模型（預設）",
+            ).classes("w-full")
+            or_model = ui.input(
+                label="自訂文字模型 ID",
+                value=config.OPENROUTER_MODEL,
+            ).classes("w-full")
+            or_model.set_visibility(_init_model == "自訂…")
+
+            def _on_model_sel(e):
+                if e.value == "自訂…":
+                    or_model.set_visibility(True)
+                else:
+                    or_model.value = e.value
+                    or_model.set_visibility(False)
+
+            or_model_sel.on("update:model-value", _on_model_sel)
+
             or_vis   = ui.input(label="視覺模型", value=config.OPENROUTER_VISION_MODEL).classes("w-full")
             ui.link("取得 API Key → openrouter.ai/keys",
                     "https://openrouter.ai/keys", new_tab=True).classes("text-xs text-blue-400")
