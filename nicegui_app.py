@@ -2,12 +2,18 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from typing import Optional
 
 from nicegui import app, ui, run
 
 import json
+
+# ── Suppress noisy pywebview/Edge WebView2 cleanup warnings ──────────────────
+# On Windows, pywebview fails to delete Edge's CrashpadMetrics-active.pma on
+# exit (WinError 5 – file still locked by WebView2 process). This is harmless.
+logging.getLogger("pywebview").setLevel(logging.ERROR)
 
 import config
 import image_utils
@@ -1794,6 +1800,11 @@ if __name__ in {"__main__", "__mp_main__"}:
     except EnvironmentError as e:
         applog.log.warning(f"Config warning: {e}")
 
+    # storage_path: fixed app-local dir so Edge WebView2 doesn't use a random
+    # %TEMP% folder it can't clean up on exit (suppresses WinError 5 on close).
+    _webview_data = config.OUTPUT_DIR.parent / ".webview_data"
+    _webview_data.mkdir(parents=True, exist_ok=True)
+
     ui.run(
         title="🎬 Prompt Studio — AI Image & Video Generator",
         host="127.0.0.1",
@@ -1803,4 +1814,5 @@ if __name__ in {"__main__", "__mp_main__"}:
         dark=True,
         favicon="🎬",
         reload=False,
+        storage_secret="prompt_studio_local",
     )

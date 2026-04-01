@@ -9,3 +9,4 @@ images/
 .nicegui/
 .venv/
 venv/
+.webview_data/
