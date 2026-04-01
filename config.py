@@ -25,6 +25,13 @@ OLLAMA_VISION_MODEL: str = os.getenv("OLLAMA_VISION_MODEL", "llava")
 # ── Think Mode ────────────────────────────────────────────────────────────────
 THINK_MODE: bool = os.getenv("THINK_MODE", "true").lower() == "true"
 
+# ── Connection ────────────────────────────────────────────────────────────────
+# How long (seconds) to wait for an API response before timing out
+REQUEST_TIMEOUT_SECS: int = int(os.getenv("REQUEST_TIMEOUT_SECS", "120"))
+# How long (minutes) idle before status shows "disconnected"
+# Next generation auto-reconnects regardless of this value
+IDLE_DISCONNECT_MINS: int = int(os.getenv("IDLE_DISCONNECT_MINS", "30"))
+
 # ── Paths ─────────────────────────────────────────────────────────────────────
 IMAGES_DIR = Path(os.getenv("IMAGES_DIR", "images"))
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
@@ -50,10 +57,13 @@ def save_settings(
     ollama_model: str,
     ollama_vision_model: str,
     think_mode: bool = True,
+    request_timeout_secs: int = 120,
+    idle_disconnect_mins: int = 30,
 ) -> None:
     """Persist settings to .env and update runtime globals."""
     global API_PROVIDER, OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_VISION_MODEL
     global OLLAMA_BASE_URL, OLLAMA_MODEL, OLLAMA_VISION_MODEL, THINK_MODE
+    global REQUEST_TIMEOUT_SECS, IDLE_DISCONNECT_MINS
 
     API_PROVIDER = provider
     OPENROUTER_API_KEY = openrouter_key
@@ -63,6 +73,8 @@ def save_settings(
     OLLAMA_MODEL = ollama_model
     OLLAMA_VISION_MODEL = ollama_vision_model
     THINK_MODE = think_mode
+    REQUEST_TIMEOUT_SECS = request_timeout_secs
+    IDLE_DISCONNECT_MINS = idle_disconnect_mins
 
     # Read existing .env (preserve unknown lines)
     existing: dict[str, str] = {}
@@ -82,6 +94,8 @@ def save_settings(
         "OLLAMA_MODEL": ollama_model,
         "OLLAMA_VISION_MODEL": ollama_vision_model,
         "THINK_MODE": "true" if think_mode else "false",
+        "REQUEST_TIMEOUT_SECS": str(request_timeout_secs),
+        "IDLE_DISCONNECT_MINS": str(idle_disconnect_mins),
     })
 
     lines = [f"{k}={v}" for k, v in existing.items()]

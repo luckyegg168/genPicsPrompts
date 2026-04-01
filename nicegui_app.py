@@ -85,6 +85,135 @@ def _copy_btn(text_getter, color: str = "bg-amber-600") -> ui.button:
     )
 
 
+# ── Connection status row ─────────────────────────────────────────────────────
+
+def _conn_status_row() -> None:
+    """Render a one-line connection-status badge (reads agent._last_call_time)."""
+    import time as _time
+    import agent as _agent
+    elapsed = _time.time() - _agent._last_call_time if _agent._last_call_time else None
+    idle_limit = config.IDLE_DISCONNECT_MINS * 60
+
+    if elapsed is None:
+        txt, cls = "⚫ 尚未連線", "text-gray-500"
+    elif elapsed < 60:
+        txt, cls = f"🟢 連線中（{int(elapsed)}s 前）", "text-green-400"
+    elif elapsed < idle_limit:
+        m = int(elapsed // 60)
+        txt, cls = f"🟡 閒置 {m}m（生成時自動重連）", "text-yellow-400"
+    else:
+        m = int(elapsed // 60)
+        txt, cls = f"🔴 逾時 {m}m｜逾時上限 {config.IDLE_DISCONNECT_MINS}m（生成時自動重連）", "text-red-400"
+
+    ui.label(txt).classes(f"text-xs {cls} self-end")
+
+
+# ── Quick "Foolproof" generation widget ───────────────────────────────────────
+
+def _quick_gen_widget() -> "callable":
+    """Render 傻瓜模式 expansion at the current position.
+
+    Returns a ``bind_to(crefs, trefs, gen_fn)`` function to be called
+    *after* the page's generate function is defined.
+    """
+    with ui.expansion("⚡ 傻瓜模式 — 一句話就能生成", icon="bolt", value=True).classes(
+        "w-full bg-indigo-950 border border-indigo-800 rounded-xl"
+    ):
+        ui.label(
+            "填入一句話描述，或直接留空讓 AI 自由發揮。按鈕會自動填滿所有欄位並立即生成。"
+        ).classes("text-xs text-indigo-300 mb-1")
+        with ui.row().classes("items-end gap-3 w-full"):
+            quick_inp = ui.input(
+                label="畫面描述（可留空→隨機靈感）",
+                placeholder="e.g. 夜雨中的賽博龐克女殺手 / old samurai at sunset / 留空→隨機",
+            ).classes("flex-1")
+            quick_btn = ui.button("🪄 一鍵生成", icon="auto_awesome").classes(
+                "bg-indigo-600 text-white"
+            )
+        _conn_status_row()
+
+    def bind_to(crefs: dict, trefs: dict, gen_fn):
+        async def _run():
+            desc = quick_inp.value.strip() or "surprise me with a vivid cinematic scene"
+            try:
+                config.validate_config()
+            except EnvironmentError as e:
+                ui.notify(str(e), type="negative"); return
+            quick_btn.set_text("⏳ AI 思考中…")
+            quick_btn.props("disabled")
+            try:
+                r = await run.io_bound(prompt_generator.autocomplete_character, desc)
+                crefs["name"].set_value(r.get("name", "Hero"))
+                crefs["desc_en"].set_value(r.get("description_en", ""))
+                crefs["desc_zh"].set_value(r.get("description_zh", ""))
+                trefs["theme"].set_value(
+                    (r.get("theme_zh", "") + "\n" + r.get("theme_en", "")).strip()
+                )
+                trefs["style"].set_value(r.get("style", DEFAULT_STYLE))
+                ui.notify("✅ 欄位已填入，生成中…", type="info")
+                await gen_fn()
+            except Exception as exc:
+                applog.log.error(f"quick_gen error: {exc}", exc_info=True)
+                ui.notify(f"一鍵生成失敗：{exc}", type="negative")
+            finally:
+                quick_btn.set_text("🪄 一鍵生成")
+                quick_btn.props(remove="disabled")
+
+        quick_btn.on("click", _run)
+
+    return bind_to
+
+
+# ── Quick widget for script pages (synopsis-fill variant) ─────────────────────
+
+def _quick_script_widget() -> "callable":
+    """Render quick input for script pages.
+
+    Returns ``bind_to(synopsis_field, gen_fn)`` to call after both are defined.
+    """
+    with ui.expansion("⚡ 傻瓜模式 — 一句話腳本", icon="bolt", value=True).classes(
+        "w-full bg-indigo-950 border border-indigo-800 rounded-xl"
+    ):
+        ui.label(
+            "輸入一句話故事概念（可留空），AI 會生成完整大綱並填入下方欄位後立即生成腳本。"
+        ).classes("text-xs text-indigo-300 mb-1")
+        with ui.row().classes("items-end gap-3 w-full"):
+            qs_inp = ui.input(
+                label="故事概念（可留空→AI 自由發揮）",
+                placeholder="e.g. 孤獨駭客追查失憶之謎 / 末日後兩個孩子尋找安全地 / 留空→隨機",
+            ).classes("flex-1")
+            qs_btn = ui.button("🪄 一鍵生成腳本", icon="auto_awesome").classes(
+                "bg-indigo-600 text-white"
+            )
+        _conn_status_row()
+
+    def bind_to(synopsis_field, gen_fn):
+        async def _run():
+            concept = qs_inp.value.strip() or "surprise me with a creative short film concept"
+            try:
+                config.validate_config()
+            except EnvironmentError as e:
+                ui.notify(str(e), type="negative"); return
+            qs_btn.set_text("⏳ AI 思考中…")
+            qs_btn.props("disabled")
+            try:
+                r = await run.io_bound(prompt_generator.autocomplete_character, concept)
+                synopsis = (r.get("theme_zh", "") + "\n\n" + r.get("theme_en", "")).strip()
+                synopsis_field.set_value(synopsis or concept)
+                ui.notify("✅ 大綱已填入，生成腳本中…", type="info")
+                await gen_fn()
+            except Exception as exc:
+                applog.log.error(f"quick_script error: {exc}", exc_info=True)
+                ui.notify(f"一鍵腳本失敗：{exc}", type="negative")
+            finally:
+                qs_btn.set_text("🪄 一鍵生成腳本")
+                qs_btn.props(remove="disabled")
+
+        qs_btn.on("click", _run)
+
+    return bind_to
+
+
 # ── Cinema settings widget (shared) ──────────────────────────────────────────
 
 def cinema_inputs() -> dict:
@@ -179,6 +308,8 @@ def page_single():
     with ui.column().classes("w-full max-w-5xl mx-auto p-4 gap-4"):
         ui.label("🖼 單張圖片提示詞").classes("text-2xl font-bold text-white")
 
+        bind_quick = _quick_gen_widget()  # 傻瓜模式（綁定在 generate 定義後）
+
         crefs = character_inputs()
         trefs = theme_style_inputs()
 
@@ -269,6 +400,7 @@ def page_single():
                 crefs["auto_btn"].set_text("✨ AI 自動完成")
 
         crefs["auto_btn"].on("click", do_autocomplete)
+        bind_quick(crefs, trefs, generate)
 
         ui.button("🚀 生成提示詞", icon="send", on_click=generate).classes(
             "bg-indigo-600 text-white text-lg px-6 py-3 rounded-xl"
@@ -283,6 +415,8 @@ def page_sequence():
     _sidebar()
     with ui.column().classes("w-full max-w-5xl mx-auto p-4 gap-4"):
         ui.label("🔄 圖片序列生成").classes("text-2xl font-bold text-white")
+
+        bind_quick = _quick_gen_widget()
 
         crefs = character_inputs()
         trefs = theme_style_inputs()
@@ -359,6 +493,7 @@ def page_sequence():
             ui.notify(f"✅ 序列已儲存 — {len(sequence.frames)} 幀", type="positive")
             applog.log.info(f"Sequence saved: {sid}, {len(sequence.frames)} frames")
 
+        bind_quick(crefs, trefs, gen_sequence)
         ui.button("🚀 生成序列", icon="burst_mode", on_click=gen_sequence).classes(
             "bg-purple-600 text-white text-lg px-6 py-3 rounded-xl"
         )
@@ -372,6 +507,8 @@ def page_video():
     _sidebar()
     with ui.column().classes("w-full max-w-5xl mx-auto p-4 gap-4"):
         ui.label("🎬 影片提示詞生成").classes("text-2xl font-bold text-white")
+
+        bind_quick = _quick_gen_widget()
 
         crefs = character_inputs()
         trefs = theme_style_inputs()
@@ -456,6 +593,7 @@ def page_video():
             ui.notify(f"✅ 影片序列已儲存 — {n} 片段", type="positive")
             applog.log.info(f"Video sequence saved: {sid}")
 
+        bind_quick(crefs, trefs, gen_video)
         ui.button("🚀 生成影片提示詞", icon="movie", on_click=gen_video).classes(
             "bg-green-600 text-white text-lg px-6 py-3 rounded-xl"
         )
@@ -1061,6 +1199,28 @@ def page_settings():
                 "關閉後會在提示詞前加入 /no-think，讓模型跳過思考鏈直接回答（速度較快）。"
             ).classes("text-xs text-gray-400")
 
+        # ── Connection timeouts ───────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 p-4 gap-3"):
+            ui.label("🔌 連線逾時設定").classes("text-lg font-semibold text-cyan-300")
+            with ui.column().classes("w-full gap-1"):
+                ui.label("請求逾時（秒）— AI 未在此時間內回應則報錯後自動重試").classes("text-xs text-gray-400")
+                with ui.row().classes("items-center gap-3 w-full"):
+                    timeout_slider = ui.slider(
+                        min=30, max=300, step=10, value=config.REQUEST_TIMEOUT_SECS
+                    ).classes("flex-1")
+                    ui.label().bind_text_from(timeout_slider, "value",
+                                              backward=lambda v: f"{int(v)}s").classes("text-white w-12")
+            with ui.column().classes("w-full gap-1"):
+                ui.label(
+                    "閒置斷線（分鐘）— 超過此時間未使用則顯示「已逾時」；下次生成自動重連"
+                ).classes("text-xs text-gray-400")
+                with ui.row().classes("items-center gap-3 w-full"):
+                    idle_slider = ui.slider(
+                        min=5, max=120, step=5, value=config.IDLE_DISCONNECT_MINS
+                    ).classes("flex-1")
+                    ui.label().bind_text_from(idle_slider, "value",
+                                              backward=lambda v: f"{int(v)}m").classes("text-white w-12")
+
         # Show/hide cards based on selection
         def _update_cards():
             is_or = provider_radio.value == "openrouter"
@@ -1081,6 +1241,8 @@ def page_settings():
                 ollama_model=ol_model.value.strip() or "llama3",
                 ollama_vision_model=ol_vis.value.strip() or "llava",
                 think_mode=think_toggle.value,
+                request_timeout_secs=int(timeout_slider.value),
+                idle_disconnect_mins=int(idle_slider.value),
             )
             applog.log.info(f"Settings saved. provider={config.API_PROVIDER}, think_mode={config.THINK_MODE}")
             ui.notify(f"✅ 設定已儲存（{config.API_PROVIDER}）", type="positive")
@@ -1303,6 +1465,8 @@ def page_videoscript():
         ui.label("輸入故事概念，AI 自動生成完整電影分鏡腳本（含攝影指示、導演備註、AI 生圖提示詞）")\
             .classes("text-gray-400 text-sm")
 
+        bind_qs = _quick_script_widget()  # renders now; bound to synopsis_inp later
+
         # ── Project info ──────────────────────────────────────────────────────
         with ui.card().classes("w-full bg-gray-800 p-4 gap-3"):
             ui.label("🎬 專案設定").classes("text-lg font-semibold text-indigo-300")
@@ -1469,6 +1633,8 @@ def page_videoscript():
         gen_btn = ui.button(
             "🎬 生成腳本", icon="movie_filter", on_click=gen_script
         ).classes("bg-purple-700 text-white text-lg px-8 py-3 rounded-xl")
+
+        bind_qs(synopsis_inp, gen_script)  # wire 傻瓜模式 to synopsis + gen_script
 
 
 # ── Page: Prompt Inspiration Library ─────────────────────────────────────────

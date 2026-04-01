@@ -10,6 +10,10 @@ from openai import OpenAI
 import config
 
 
+# Tracks the epoch time of the last successful API call (used for idle/reconnect status)
+_last_call_time: float = 0.0
+
+
 def _build_client(vision: bool = False) -> tuple[OpenAI, str]:
     """Return (client, model) based on runtime config.API_PROVIDER."""
     if config.API_PROVIDER == "ollama":
@@ -74,8 +78,11 @@ def chat(
                     {"role": "user", "content": effective_user},
                 ],
                 temperature=0.85,
+                timeout=config.REQUEST_TIMEOUT_SECS,
             )
             content = response.choices[0].message.content or ""
+            global _last_call_time
+            _last_call_time = time.time()
             return _parse_response(content, response_format)
 
         except json.JSONDecodeError as e:
@@ -134,8 +141,11 @@ def chat_with_image(
                     {"role": "user", "content": user_message},
                 ],
                 temperature=0.85,
+                timeout=config.REQUEST_TIMEOUT_SECS,
             )
             content = response.choices[0].message.content or ""
+            global _last_call_time
+            _last_call_time = time.time()
             return _parse_response(content, response_format)
 
         except json.JSONDecodeError as e:
