@@ -1471,6 +1471,98 @@ def page_videoscript():
         ).classes("bg-purple-700 text-white text-lg px-8 py-3 rounded-xl")
 
 
+# ── Page: Prompt Inspiration Library ─────────────────────────────────────────
+
+@ui.page("/prompts")
+def page_prompts():
+    _page_setup()
+    _sidebar()
+
+    # Build category lists per source
+    _VP_CATS  = ["全部"] + sorted({t["category"] for t in templates.VIDEO_PROMPT_TEMPLATES})
+    _SD_CATS  = ["全部"] + sorted({t["category"] for t in templates.SEEDANCE_PROMPT_TEMPLATES})
+
+    with ui.column().classes("w-full max-w-6xl mx-auto p-4 gap-4"):
+        ui.label("🎞 提示詞靈感庫").classes("text-2xl font-bold text-white")
+
+        # ── Controls ──────────────────────────────────────────────────
+        with ui.row().classes("flex-wrap gap-3 items-end w-full"):
+            src_sel = ui.select(
+                {"video": "🎬 Awesome Video Prompts (50)",
+                 "seedance": "🌱 Seedance 2.0 (106)"},
+                value="video", label="資料來源",
+            ).classes("w-64")
+            cat_sel = ui.select(_VP_CATS, value="全部", label="分類").classes("w-52")
+            search_inp = ui.input(label="搜尋標題 / 提示詞", placeholder="輸入關鍵字…").classes("flex-1 min-w-48")
+            count_lbl = ui.label("").classes("text-gray-400 text-sm self-center")
+
+        ui.separator().classes("bg-gray-700")
+        cards_col = ui.column().classes("w-full gap-3")
+
+    # ── Render helpers ────────────────────────────────────────────────
+    def _render_cards():
+        src  = src_sel.value
+        pool = (templates.VIDEO_PROMPT_TEMPLATES if src == "video"
+                else templates.SEEDANCE_PROMPT_TEMPLATES)
+        cat  = cat_sel.value
+        kw   = search_inp.value.strip().lower()
+
+        filtered = [
+            t for t in pool
+            if (cat == "全部" or t["category"] == cat)
+            and (not kw or kw in t["title_zh" if src == "video" else "title_zh"].lower()
+                        or kw in (t.get("prompt_en") or t.get("prompt","")).lower()
+                        or kw in (t.get("prompt_zh") or t.get("prompt","")).lower())
+        ]
+        count_lbl.set_text(f"共 {len(filtered)} 筆")
+        cards_col.clear()
+
+        with cards_col:
+            for t in filtered:
+                title   = t.get("title_zh", t.get("label",""))
+                cat_tag = t["category"]
+                prompt_en = t.get("prompt_en") or t.get("prompt","")
+                prompt_zh = t.get("prompt_zh") or t.get("prompt","")
+                featured  = t.get("featured", False)
+
+                with ui.card().classes("w-full bg-gray-800 p-3 gap-2"):
+                    with ui.row().classes("items-center gap-2 w-full"):
+                        ui.label(cat_tag).classes("text-xs bg-gray-700 px-2 py-0.5 rounded text-indigo-300")
+                        if featured:
+                            ui.label("⭐ 精選").classes("text-xs text-yellow-400")
+                        ui.label(title).classes("font-semibold text-white flex-1")
+
+                    # English / main prompt
+                    if prompt_en:
+                        _en = prompt_en
+                        with ui.row().classes("items-start gap-2 w-full"):
+                            ui.label(_en[:400] + ("…" if len(_en) > 400 else "")).classes(
+                                "flex-1 text-xs font-mono text-gray-300 whitespace-pre-wrap")
+                            _copy_btn(lambda p=_en: p)
+
+                    # Chinese prompt (only if different from EN)
+                    if prompt_zh and prompt_zh != prompt_en:
+                        _zh = prompt_zh
+                        with ui.row().classes("items-start gap-2 w-full"):
+                            ui.label(_zh[:300] + ("…" if len(_zh) > 300 else "")).classes(
+                                "flex-1 text-xs text-gray-400 whitespace-pre-wrap")
+                            _copy_btn(lambda p=_zh: p, color="bg-amber-500")
+
+    def _on_src_change():
+        # Update category options when source changes
+        src = src_sel.value
+        cats = _VP_CATS if src == "video" else _SD_CATS
+        cat_sel.options = cats
+        cat_sel.set_value("全部")
+        _render_cards()
+
+    src_sel.on("update:model-value", lambda: _on_src_change())
+    cat_sel.on("update:model-value", lambda: _render_cards())
+    search_inp.on("update:model-value", lambda: _render_cards())
+
+    _render_cards()  # initial render
+
+
 # ── Sidebar navigation ────────────────────────────────────────────────────────
 
 def _sidebar() -> None:
@@ -1486,6 +1578,7 @@ def _sidebar() -> None:
         _nav_btn("🤖 AI 補完",     "/continue",    "auto_fix_high")
         _nav_btn("✏️ 提示詞編輯器", "/editor",      "edit_note")
         _nav_btn("📝 影片腳本",    "/videoscript", "movie_filter")
+        _nav_btn("🎞 靈感提示詞庫",  "/prompts",     "local_movies")
         _nav_btn("📋 提示詞庫",    "/library",     "library_books")
         _nav_btn("📜 操作記錄",    "/logs",        "history")
         _nav_btn("⚙ 設定",        "/settings",    "settings")
