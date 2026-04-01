@@ -7,6 +7,8 @@ from typing import Optional
 
 from nicegui import app, ui, run
 
+import json
+
 import config
 import image_utils
 import logger as applog
@@ -71,6 +73,18 @@ def _level_color(level: str) -> str:
     }.get(level, "text-white")
 
 
+def _copy_btn(text_getter, color: str = "bg-amber-600") -> ui.button:
+    """Amber copy-to-clipboard button.  text_getter() must return the string to copy."""
+    async def _do() -> None:
+        await ui.run_javascript(
+            f"navigator.clipboard.writeText({json.dumps(text_getter())})"
+        )
+        ui.notify("已複製 ✓", type="positive")
+    return ui.button("複製", icon="content_copy", on_click=_do).classes(
+        f"{color} text-white text-xs px-2 py-1 self-end"
+    )
+
+
 # ── Cinema settings widget (shared) ──────────────────────────────────────────
 
 def cinema_inputs() -> dict:
@@ -94,7 +108,8 @@ def character_inputs(include_autocomplete: bool = True) -> dict:
         if include_autocomplete:
             with ui.row().classes("items-end gap-2 w-full"):
                 refs["short"] = ui.input(label="快速輸入 (e.g. 老武士)", placeholder="輸入簡短描述讓 AI 自動完成").classes("flex-1")
-                refs["auto_btn"] = ui.button("✨ AI 自動完成", icon="auto_awesome")
+                refs["auto_btn"] = ui.button("✨ AI 自動完成", icon="auto_awesome").classes(
+                    "bg-rose-600 text-white")
 
         with ui.row().classes("flex-wrap gap-3 w-full mt-2"):
             with ui.column().classes("flex-1 min-w-48"):
@@ -104,7 +119,8 @@ def character_inputs(include_autocomplete: bool = True) -> dict:
             with ui.column().classes("flex-1 min-w-48"):
                 refs["char_tmpl"] = ui.select(CHAR_LABELS, label="套用角色模板",
                                                value=CHAR_LABELS[0]).classes("w-full")
-                refs["apply_char"] = ui.button("套用", icon="style").classes("mt-1")
+                refs["apply_char"] = ui.button("套用", icon="style").classes(
+                    "mt-1 bg-violet-700 text-white")
 
     return refs
 
@@ -118,12 +134,14 @@ def theme_style_inputs() -> dict:
                                                   placeholder="輸入主題或套用模板").props("rows=2").classes("w-full")
                 refs["story_tmpl"] = ui.select(STORY_LABELS, label="主題模板",
                                                 value=STORY_LABELS[0]).classes("w-full")
-                refs["apply_story"] = ui.button("套用故事", icon="style")
+                refs["apply_story"] = ui.button("套用故事", icon="style").classes(
+                    "bg-violet-700 text-white")
             with ui.column().classes("flex-1 min-w-48"):
                 refs["style"]       = ui.input(label="風格 / Style", value=DEFAULT_STYLE).classes("w-full")
                 refs["style_tmpl"]  = ui.select(STYLE_LABELS, label="風格模板",
                                                  value=STYLE_LABELS[0]).classes("w-full")
-                refs["apply_style"] = ui.button("套用風格", icon="palette")
+                refs["apply_style"] = ui.button("套用風格", icon="palette").classes(
+                    "bg-fuchsia-700 text-white")
                 refs["neg"]        = ui.input(label="負面提示詞", value=DEFAULT_NEG).classes("w-full")
     return refs
 
@@ -170,8 +188,12 @@ def page_single():
         with ui.expansion("🎬 電影規格", icon="camera", value=True).classes("w-full bg-gray-800"):
             cinrefs = cinema_inputs()
 
-        result_en  = ui.textarea(label="✅ English Prompt").props("rows=5").classes("w-full font-mono")
-        result_zh  = ui.textarea(label="✅ 中文提示詞").props("rows=5").classes("w-full font-mono")
+        with ui.row().classes("items-start gap-2 w-full"):
+            result_en  = ui.textarea(label="✅ English Prompt").props("rows=5").classes("flex-1 font-mono")
+            _copy_btn(lambda: result_en.value)
+        with ui.row().classes("items-start gap-2 w-full"):
+            result_zh  = ui.textarea(label="✅ 中文提示詞").props("rows=5").classes("flex-1 font-mono")
+            _copy_btn(lambda: result_zh.value, color="bg-amber-500")
         result_det = ui.markdown("").classes("w-full text-gray-300")
 
         async def generate():
@@ -318,8 +340,14 @@ def page_sequence():
                     with frames_container:
                         with ui.card().classes("w-full bg-gray-800 p-3"):
                             ui.label(f"Frame {i+1} — {frame.action_zh}").classes("font-bold text-indigo-300")
-                            ui.label(frame.prompt_en).classes("text-sm text-gray-200 font-mono")
-                            ui.label(frame.prompt_zh).classes("text-sm text-gray-400")
+                            _en_t = frame.prompt_en
+                            _zh_t = frame.prompt_zh
+                            with ui.row().classes("items-start gap-2 w-full"):
+                                ui.label(_en_t).classes("flex-1 text-sm text-gray-200 font-mono")
+                                _copy_btn(lambda t=_en_t: t)
+                            with ui.row().classes("items-start gap-2 w-full"):
+                                ui.label(_zh_t).classes("flex-1 text-sm text-gray-400")
+                                _copy_btn(lambda t=_zh_t: t, color="bg-amber-500")
                 except Exception as exc:
                     applog.log.error(f"Sequence frame {i+1} error: {exc}", exc_info=True)
                     with frames_container:
@@ -409,8 +437,14 @@ def page_video():
                         with ui.card().classes("w-full bg-gray-800 p-3"):
                             ui.label(f"Clip {i+1} [{vf.duration} | {vf.fps} | {vf.camera_movement}]").classes(
                                 "font-bold text-green-300")
-                            ui.label(vf.prompt_en).classes("text-sm text-gray-200 font-mono")
-                            ui.label(vf.prompt_zh).classes("text-sm text-gray-400")
+                            _en_t = vf.prompt_en
+                            _zh_t = vf.prompt_zh
+                            with ui.row().classes("items-start gap-2 w-full"):
+                                ui.label(_en_t).classes("flex-1 text-sm text-gray-200 font-mono")
+                                _copy_btn(lambda t=_en_t: t)
+                            with ui.row().classes("items-start gap-2 w-full"):
+                                ui.label(_zh_t).classes("flex-1 text-sm text-gray-400")
+                                _copy_btn(lambda t=_zh_t: t, color="bg-amber-500")
                             ui.label(f"角色動作: {vf.subject_motion_zh}").classes("text-xs text-yellow-300")
                 except Exception as exc:
                     applog.log.error(f"Video clip {i+1} error: {exc}", exc_info=True)
@@ -451,8 +485,12 @@ def page_image2prompt():
         with ui.expansion("🎬 電影規格", icon="camera", value=False).classes("w-full bg-gray-800"):
             cinrefs = cinema_inputs()
 
-        result_en  = ui.textarea(label="✅ English Prompt").props("rows=5").classes("w-full font-mono")
-        result_zh  = ui.textarea(label="✅ 中文提示詞").props("rows=5").classes("w-full font-mono")
+        with ui.row().classes("items-start gap-2 w-full"):
+            result_en  = ui.textarea(label="✅ English Prompt").props("rows=5").classes("flex-1 font-mono")
+            _copy_btn(lambda: result_en.value)
+        with ui.row().classes("items-start gap-2 w-full"):
+            result_zh  = ui.textarea(label="✅ 中文提示詞").props("rows=5").classes("flex-1 font-mono")
+            _copy_btn(lambda: result_zh.value, color="bg-amber-500")
 
         async def gen_from_upload():
             try:
@@ -515,11 +553,25 @@ def page_library():
         # ── Edit dialog ────────────────────────
         edit_state: dict = {"idx": None, "ptype": None}
 
-        with ui.dialog() as edit_dialog, ui.card().classes("w-full max-w-2xl p-4"):
+        with ui.dialog() as edit_dialog, ui.card().classes("w-full max-w-2xl p-4 gap-3"):
             ui.label("✏️ 編輯提示詞").classes("text-xl font-bold text-white")
-            edit_en  = ui.textarea(label="English Prompt").props("rows=5").classes("w-full font-mono")
-            edit_zh  = ui.textarea(label="中文提示詞").props("rows=5").classes("w-full font-mono")
-            edit_neg = ui.input(label="負面提示詞").classes("w-full")
+            ui.separator().classes("bg-gray-600")
+
+            with ui.column().classes("w-full gap-1"):
+                with ui.row().classes("items-center justify-between w-full"):
+                    ui.label("English Prompt").classes("text-sm text-gray-400 font-semibold")
+                    _dlg_copy_en_btn = _copy_btn(lambda: edit_en.value)
+                edit_en  = ui.textarea().props("rows=4").classes("w-full font-mono text-sm")
+
+            with ui.column().classes("w-full gap-1"):
+                with ui.row().classes("items-center justify-between w-full"):
+                    ui.label("中文提示詞").classes("text-sm text-gray-400 font-semibold")
+                    _dlg_copy_zh_btn = _copy_btn(lambda: edit_zh.value, color="bg-amber-500")
+                edit_zh  = ui.textarea().props("rows=4").classes("w-full font-mono text-sm")
+
+            with ui.column().classes("w-full gap-1"):
+                ui.label("負面提示詞").classes("text-sm text-gray-400 font-semibold")
+                edit_neg = ui.input().classes("w-full")
 
             def save_edit():
                 idx   = edit_state["idx"]
@@ -539,7 +591,8 @@ def page_library():
                 else:
                     ui.notify("❌ 儲存失敗", type="negative")
 
-            with ui.row().classes("gap-3 mt-2"):
+            ui.separator().classes("bg-gray-600")
+            with ui.row().classes("gap-3"):
                 ui.button("💾 儲存", icon="save", on_click=save_edit).classes(
                     "bg-green-600 text-white")
                 ui.button("取消", icon="close", on_click=edit_dialog.close).classes(
@@ -621,22 +674,29 @@ def page_library():
                                 "text-xs text-gray-400"
                             )
                             ui.label(f"{res} {ar} {angle}").classes("text-xs text-indigo-300")
-                        ui.label(record.get("prompt_en", "")).classes(
-                            "text-sm text-gray-200 font-mono cursor-pointer")
-                        ui.label(record.get("prompt_zh", "")).classes("text-sm text-gray-400")
+
+                        _pen = record.get("prompt_en", "")
+                        _pzh = record.get("prompt_zh", "")
+                        with ui.row().classes("items-start gap-2 w-full"):
+                            ui.label(_pen).classes("flex-1 text-sm text-gray-200 font-mono")
+                            _copy_btn(lambda t=_pen: t)
+                        with ui.row().classes("items-start gap-2 w-full"):
+                            ui.label(_pzh).classes("flex-1 text-sm text-gray-400")
+                            _copy_btn(lambda t=_pzh: t, color="bg-amber-500")
+
                         if rtype == "video":
                             ui.label(
                                 f"運鏡: {record.get('camera_movement','')} | "
                                 f"{record.get('duration','')} | {record.get('fps','')}"
                             ).classes("text-xs text-yellow-300")
 
-                        with ui.row().classes("gap-2 mt-1"):
+                        with ui.row().classes("gap-2 mt-2"):
                             _idx   = abs_idx
                             _rt    = rtype
                             _rec   = dict(record)
                             ui.button("✏️ 編輯", icon="edit",
                                        on_click=lambda _i=_idx, _r=_rec, _t=_rt: open_edit(_i, _r, _t),
-                                      ).classes("bg-indigo-700 text-white text-xs px-3 py-1")
+                                      ).classes("bg-indigo-600 text-white text-xs px-3 py-1")
                             ui.button("🗑 刪除", icon="delete",
                                        on_click=lambda _i=_idx, _t=_rt: delete_record(_i, _t),
                                       ).classes("bg-red-700 text-white text-xs px-3 py-1")
