@@ -156,6 +156,7 @@ def _bind_story_style_templates(trefs: dict) -> None:
 
 @ui.page("/")
 def page_single():
+    _page_setup()
     _sidebar()
     with ui.column().classes("w-full max-w-5xl mx-auto p-4 gap-4"):
         ui.label("🖼 單張圖片提示詞").classes("text-2xl font-bold text-white")
@@ -256,6 +257,7 @@ def page_single():
 
 @ui.page("/sequence")
 def page_sequence():
+    _page_setup()
     _sidebar()
     with ui.column().classes("w-full max-w-5xl mx-auto p-4 gap-4"):
         ui.label("🔄 圖片序列生成").classes("text-2xl font-bold text-white")
@@ -338,6 +340,7 @@ def page_sequence():
 
 @ui.page("/video")
 def page_video():
+    _page_setup()
     _sidebar()
     with ui.column().classes("w-full max-w-5xl mx-auto p-4 gap-4"):
         ui.label("🎬 影片提示詞生成").classes("text-2xl font-bold text-white")
@@ -428,6 +431,7 @@ def page_video():
 
 @ui.page("/image2prompt")
 def page_image2prompt():
+    _page_setup()
     _sidebar()
     with ui.column().classes("w-full max-w-5xl mx-auto p-4 gap-4"):
         ui.label("📷 以圖生文").classes("text-2xl font-bold text-white")
@@ -491,6 +495,7 @@ def page_image2prompt():
 
 @ui.page("/library")
 def page_library():
+    _page_setup()
     _sidebar()
     with ui.column().classes("w-full max-w-5xl mx-auto p-4 gap-4"):
         ui.label("📋 提示詞庫").classes("text-2xl font-bold text-white")
@@ -644,6 +649,7 @@ def page_library():
 
 @ui.page("/logs")
 def page_logs():
+    _page_setup()
     _sidebar()
     with ui.column().classes("w-full max-w-5xl mx-auto p-4 gap-4"):
         ui.label("📜 操作記錄 / Logs").classes("text-2xl font-bold text-white")
@@ -707,9 +713,11 @@ def _nav_btn(label: str, path: str, icon: str) -> None:
     )
 
 
-# ── Global dark theme ─────────────────────────────────────────────────────────
+# ── Per-page setup ───────────────────────────────────────────────────────────
 
-ui.query("body").classes("bg-gray-950 text-white")
+def _page_setup() -> None:
+    """Apply global dark theme — must be called inside every @ui.page function."""
+    ui.query("body").classes("bg-gray-950 text-white")
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
