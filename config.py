@@ -46,10 +46,11 @@ def save_settings(
     ollama_base_url: str,
     ollama_model: str,
     ollama_vision_model: str,
+    think_mode: bool = True,
 ) -> None:
     """Persist settings to .env and update runtime globals."""
     global API_PROVIDER, OPENROUTER_API_KEY, OPENROUTER_MODEL, OPENROUTER_VISION_MODEL
-    global OLLAMA_BASE_URL, OLLAMA_MODEL, OLLAMA_VISION_MODEL
+    global OLLAMA_BASE_URL, OLLAMA_MODEL, OLLAMA_VISION_MODEL, THINK_MODE
 
     API_PROVIDER = provider
     OPENROUTER_API_KEY = openrouter_key
@@ -58,6 +59,7 @@ def save_settings(
     OLLAMA_BASE_URL = ollama_base_url
     OLLAMA_MODEL = ollama_model
     OLLAMA_VISION_MODEL = ollama_vision_model
+    THINK_MODE = think_mode
 
     # Read existing .env (preserve unknown lines)
     existing: dict[str, str] = {}
@@ -76,6 +78,7 @@ def save_settings(
         "OLLAMA_BASE_URL": ollama_base_url,
         "OLLAMA_MODEL": ollama_model,
         "OLLAMA_VISION_MODEL": ollama_vision_model,
+        "THINK_MODE": "true" if think_mode else "false",
     })
 
     lines = [f"{k}={v}" for k, v in existing.items()]

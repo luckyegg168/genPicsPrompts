@@ -1018,6 +1018,17 @@ def page_settings():
             ol_vis   = ui.input(label="視覺模型 (e.g. llava)", value=config.OLLAMA_VISION_MODEL).classes("w-full")
             ui.label("確保 Ollama 已在本機執行：ollama serve").classes("text-xs text-gray-400")
 
+        # ── Think Mode ────────────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 p-4 gap-2"):
+            ui.label("🧠 Think Mode（推理模式）").classes("text-lg font-semibold text-purple-300")
+            think_toggle = ui.switch(
+                "啟用 Think Mode（Qwen3 等模型支援深度推理，更準確但較慢）",
+                value=config.THINK_MODE,
+            ).classes("text-white")
+            ui.label(
+                "關閉後會在提示詞前加入 /no-think，讓模型跳過思考鏈直接回答（速度較快）。"
+            ).classes("text-xs text-gray-400")
+
         # Show/hide cards based on selection
         def _update_cards():
             is_or = provider_radio.value == "openrouter"
@@ -1037,8 +1048,9 @@ def page_settings():
                 ollama_base_url=ol_url.value.strip() or "http://localhost:11434/v1",
                 ollama_model=ol_model.value.strip() or "llama3",
                 ollama_vision_model=ol_vis.value.strip() or "llava",
+                think_mode=think_toggle.value,
             )
-            applog.log.info(f"Settings saved. provider={config.API_PROVIDER}")
+            applog.log.info(f"Settings saved. provider={config.API_PROVIDER}, think_mode={config.THINK_MODE}")
             ui.notify(f"✅ 設定已儲存（{config.API_PROVIDER}）", type="positive")
 
         async def do_test():
@@ -1065,10 +1077,11 @@ def page_settings():
         # ── Current config display ────────────────────────────────────
         def show_info():
             prov = config.API_PROVIDER
+            think_str = "🧠 Think ON" if config.THINK_MODE else "⚡ Think OFF"
             if prov == "ollama":
-                return f"**目前使用**：Ollama 本機 — `{config.OLLAMA_BASE_URL}` 模型：`{config.OLLAMA_MODEL}`"
+                return f"**目前使用**：Ollama 本機 — `{config.OLLAMA_BASE_URL}` 模型：`{config.OLLAMA_MODEL}` | {think_str}"
             key_hint = ("*" * 8 + config.OPENROUTER_API_KEY[-4:]) if len(config.OPENROUTER_API_KEY) > 4 else "(未設定)"
-            return f"**目前使用**：OpenRouter — 模型：`{config.OPENROUTER_MODEL}` Key：`{key_hint}`"
+            return f"**目前使用**：OpenRouter — 模型：`{config.OPENROUTER_MODEL}` Key：`{key_hint}` | {think_str}"
 
         info_md = ui.markdown(show_info()).classes("text-gray-300 text-sm")
         ui.timer(2.0, lambda: info_md.set_content(show_info()))

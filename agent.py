@@ -60,13 +60,18 @@ def chat(
     chosen_model = model or default_model
     content = ""
 
+    # Apply think mode: prepend /no-think directive when disabled (works for Qwen3 & compatible models)
+    effective_user = user_prompt
+    if not config.THINK_MODE:
+        effective_user = "/no-think\n" + user_prompt
+
     for attempt in range(1, max_retries + 1):
         try:
             response = client.chat.completions.create(
                 model=chosen_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
+                    {"role": "user", "content": effective_user},
                 ],
                 temperature=0.85,
             )

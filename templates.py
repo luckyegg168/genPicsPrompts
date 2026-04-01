@@ -1,7 +1,7 @@
 """Preset templates for characters, stories, and styles."""
 from __future__ import annotations
 
-# ── Character Templates (10) ──────────────────────────────────────────────────
+# ── Character Templates (20) ──────────────────────────────────────────────────
 
 CHARACTER_TEMPLATES: list[dict] = [
     {
@@ -114,9 +114,118 @@ CHARACTER_TEMPLATES: list[dict] = [
         "description_zh": "30多歲未來星際工程師，短自然卷髮，光滑白銀外骨骼配藍色發光介面板，智慧溫暖棕眼透過AR護目鏡，手腕投影全息工具",
         "style": "hard sci-fi cinematic, clean sterile white light, holographic elements, deep space backdrop, 8k",
     },
+    {
+        "label": "🧛 哥德吸血鬼",
+        "name": "Lucian",
+        "description_en": (
+            "an ancient vampire nobleman in his apparent 30s, ash-pale flawless skin, "
+            "piercing crimson eyes with vertical slit pupils, shoulder-length white hair, "
+            "wearing a black velvet Victorian coat with blood-red inner lining, "
+            "long elegant fingers, canine fangs barely visible behind a cold smile"
+        ),
+        "description_zh": "外貌30多歲的古老吸血鬼貴族，灰白無暇皮膚，赤紅豎瞳眼，肩長白髮，黑絲絨維多利亞外套內裡血紅，修長手指，冰冷微笑中隱現犬齒",
+        "style": "gothic horror cinematic, deep crimson and shadow palette, candle-lit baroque interior, volumetric dust motes, 8k",
+    },
+    {
+        "label": "🏋 現代格鬥士",
+        "name": "Jax",
+        "description_en": (
+            "a professional MMA fighter in his late 20s, shaved head, "
+            "multiple tattoos across muscular arms and neck, dark tan skin, "
+            "wearing red and black fight shorts, fingerless gloves, "
+            "intense focus in deep brown eyes, battle-worn cut above eyebrow"
+        ),
+        "description_zh": "20多歲職業MMA格鬥士，剃光頭，肌肉手臂與頸部密布刺青，深橙褐膚色，紅黑格鬥短褲，無指手套，深棕眼神高度專注，眉骨舊傷疤",
+        "style": "sports photography, dramatic ring lighting, sweat particles in the air, shallow depth of field, gritty realism, 8k",
+    },
+    {
+        "label": "🧝 黑暗精靈",
+        "name": "Sylara",
+        "description_en": (
+            "a dark elf rogue woman in her early 20s, deep purple-grey skin, "
+            "white flowing hair with silver strand braids, glowing amber elven eyes with elongated ears, "
+            "wearing a skin-tight dark leather assassin suit with glowing rune inscriptions, "
+            "twin short swords on her back, crouching on a moonlit temple rooftop"
+        ),
+        "description_zh": "20多歲黑暗精靈女盜賊，深紫灰皮膚，白色流動長髮摻銀絲辮子，琥珀色精靈眼配尖耳，緊身暗皮革刺客服飾帶發光盧恩銘文，背負雙小劍，蹲伏於月光神廟屋頂",
+        "style": "dark fantasy epic cinematic, moonlit silver lighting, mystical particle glows, deep shadow contrast, 8k HDR",
+    },
+    {
+        "label": "🚀 星際賞金獵人",
+        "name": "Zarak",
+        "description_en": (
+            "a battle-hardened bounty hunter in his mid-40s, weathered face with a deep scar across left cheek, "
+            "wearing a battered mandalorian-style helmet and aged graphite armor plates, "
+            "a heavy laser rifle slung across back, confident slouched stance, "
+            "beside a beat-up landed starship on a desert moon"
+        ),
+        "description_zh": "40多歲久經沙場的賞金獵人，風霜面容左臉頰深疤，破損曼達洛式頭盔配老舊石墨護甲，重型雷射步槍背負，自信慵懶的站姿，荒漠衛星降落的破舊星船旁",
+        "style": "space western cinematic, harsh alien sun light, warm dust haze, Star Wars tactile aesthetic, film grain, 8k",
+    },
+    {
+        "label": "🌺 熱帶女祭司",
+        "name": "Amara",
+        "description_en": (
+            "a powerful tribal high priestess in her 30s, deep ebony skin, "
+            "elaborate gold and jade ceremonial headdress, flowing white and gold robes, "
+            "ritual body paint in intricate geometric patterns, warm dark eyes filled with ancient wisdom, "
+            "standing before a roaring ceremonial bonfire at dusk"
+        ),
+        "description_zh": "30多歲強大部落大祭司，深黑膚色，精緻金與翡翠儀式頭冠，白金流動長袍，身上繁複幾何圖騰儀式彩繪，溫暖深邃眼神充滿古老智慧，黃昏熊熊儀式篝火前矗立",
+        "style": "tribal ceremony photography, golden bonfire light, rich warm African savanna tones, sacred smoke, 8k dramatic",
+    },
+    {
+        "label": "🤠 廢土牛仔",
+        "name": "Dustin",
+        "description_en": (
+            "a post-apocalyptic wasteland cowboy in his 50s, deeply creased sun-baked face, "
+            "wide-brimmed leather hat with bullet holes, long weathered duster coat, "
+            "double revolvers at hip with custom engraving, mirrored goggles pushed on forehead, "
+            "standing in an irradiated orange dessert at sunset, not afraid of anything"
+        ),
+        "description_zh": "50多歲廢土牛仔，深紋烈日烤焦的臉，帶彈孔的寬邊皮帽，長風霜外套，腰佩訂製雕刻雙左輪，護目鏡推上額頭，日落輻射橙色荒漠中矗立，無所畏懼",
+        "style": "post-apocalyptic western, scorched orange desert horizon, lens flare sunset, gritty film photography, 8k",
+    },
+    {
+        "label": "🧬 基因改造士兵",
+        "name": "SPARX",
+        "description_en": (
+            "an experimental super-soldier with visible genetic augmentations, "
+            "glowing circuit-like bioluminescent tattoo patterns under skin, "
+            "enhanced muscular frame in a sleek black powered exo-armor, "
+            "cool electric blue augmented eyes, short military haircut, "
+            "crouching in a dark rainy battlefield with explosions in background"
+        ),
+        "description_zh": "實驗性超級士兵，皮膚下可見電路般的生物發光紋身，增強肌肉框架配時尚黑色動力外骨骼甲冑，冰冷電藍色義眼，短軍事髮型，黑暗雨中戰場蹲伏，背景爆炸",
+        "style": "military sci-fi cinematic, bioluminescent highlights, rain reflection, explosive combat atmosphere, 8k",
+    },
+    {
+        "label": "🎻 神秘小提琴手",
+        "name": "Soren",
+        "description_en": (
+            "a mysterious street violinist in his early 20s, slim pale figure, "
+            "tousled ash-brown hair falling over one eye, wearing a tattered white dress shirt, "
+            "eyes closed in passionate performance, a glowing ethereal violin emanating light particles, "
+            "cobblestone alley in a rainy European city, candle-lit windows above"
+        ),
+        "description_zh": "20多歲神秘街頭小提琴手，纖細蒼白身影，凌亂灰棕髮遮一眼，破舊白色正裝衬衫，閉眼忘我演奏，發光以太小提琴散發粒子光，雨中歐洲城市鵝卵石巷弄，上方燭光窗戶",
+        "style": "European street photography, warm candlelight bokeh, rain glisten, ethereal magical realism, 8k cinematic",
+    },
+    {
+        "label": "🦁 非洲部落戰士",
+        "name": "Kofi",
+        "description_en": (
+            "a proud Maasai warrior in his late 20s, tall imposing physique, "
+            "striking red shuka cloth draped across powerful shoulders, "
+            "stacked bead necklaces and ear adornments, ochre body paint markings, "
+            "long spear held upright, fierce proud gaze at golden hour sunset over savanna"
+        ),
+        "description_zh": "20多歲自豪馬賽戰士，高挑威武體型，鮮紅色舒卡布披覆強健肩膀，層疊珠串頸飾與耳飾，赭色身體彩繪圖飾，長矛筆直持立，金色時刻草原落日下的凌厲自豪眼神",
+        "style": "National Geographic portrait photography, golden hour savanna light, majestic wide sky, rich warm earth tones, 8k",
+    },
 ]
 
-# ── Story / Theme Templates (10) ─────────────────────────────────────────────
+# ── Story / Theme Templates (20) ─────────────────────────────────────────────
 
 STORY_TEMPLATES: list[dict] = [
     {
@@ -205,9 +314,99 @@ STORY_TEMPLATES: list[dict] = [
         ),
         "theme_zh": "傳奇幻術師在搖搖欲墜的劇院表演最後一場，但今晚魔法是真實的，觀眾被困住了，唯一的出口通往一個沒人回來過的地方",
     },
+    {
+        "label": "🐉 龍族最後的契約",
+        "theme_en": (
+            "The last living dragon emerges from a frozen mountain at dawn, "
+            "seeking not a battle but a rider worthy to carry the final fire "
+            "before the dragon's eternal winter sets in"
+        ),
+        "theme_zh": "最後一頭活龍在黎明破冰山而出，尋找的不是戰鬥而是一個配得上在永恆冬眠前承載最後聖火的騎者",
+    },
+    {
+        "label": "🌊 深海第一次接觸",
+        "theme_en": (
+            "A deep-sea explorer in a failing submersible makes first contact "
+            "with an unknown bioluminescent intelligence in the Mariana Trench, "
+            "communication is complex, time is running out"
+        ),
+        "theme_zh": "深海探險家在即將損壞的潛水艇中與馬里亞納海溝的未知生物發光智慧體首次接觸，溝通複雜，時間緊迫",
+    },
+    {
+        "label": "🏙 都市孤狼的最後一夜",
+        "theme_en": (
+            "A lone vigilante spends their last night in a city they are leaving forever, "
+            "walking familiar streets at 3am, saying silent farewells to every alley they bled in, "
+            "every life they saved without thanks"
+        ),
+        "theme_zh": "孤獨義警在即將永離的城市度過最後一夜，凌晨三點漫步熟悉街道，默默告別每一條曾流血的小巷，每一個未受感謝便離去的救援",
+    },
+    {
+        "label": "🛸 第一次太陽系事件",
+        "theme_en": (
+            "An ordinary asteroid mining crew intercepts an alien object disguised as a rock, "
+            "it begins to unfurl—not threatening, not welcoming—simply indifferent, "
+            "and impossibly beautiful"
+        ),
+        "theme_zh": "普通小行星採礦隊截獲一個偽裝成巖石的外星物體，它開始展開——不是威脅，不是歡迎——只是漠然，卻不可思議地美麗",
+    },
+    {
+        "label": "🕯 鬼屋紀錄員",
+        "theme_en": (
+            "A paranormal archivist spends each night documenting a condemned Victorian mansion "
+            "room by room, cataloguing the grief and joy that soaked into every wall, "
+            "until the last room that cannot be opened speaks back"
+        ),
+        "theme_zh": "超自然檔案員以每晚逐房記錄一棟待拆維多利亞府邸，整理浸入每面牆的悲與喜，直到那扇無法開啟的最後房間開口回應",
+    },
+    {
+        "label": "🎓 被系統遺忘的天才",
+        "theme_en": (
+            "A child prodigy raised by algorithms rather than parents "
+            "discovers on their 18th birthday that they were never legally registered as a person, "
+            "and must fight a bureaucratic labyrinth to simply exist"
+        ),
+        "theme_zh": "被演算法取代父母撫養的神童在18歲生日當天發現自己從未被合法登記為人，必須對抗官僚迷宮僅僅為了「存在」",
+    },
+    {
+        "label": "🌿 森林守護者之死",
+        "theme_en": (
+            "The spirit guardian of an ancient forest willingly allows itself to be seen "
+            "for the first time, having decided to let the loggers come—"
+            "its final act is planting a single seed and walking away into nothing"
+        ),
+        "theme_zh": "古老森林的精靈守護者生平第一次主動現身，它已決定讓伐木者來——最後的舉動是種下一粒種子，然後走入虛無",
+    },
+    {
+        "label": "🔐 解碼者的遺言",
+        "theme_en": (
+            "A dying cryptographer leaves behind not a will but an encrypted message "
+            "that can only be decoded by someone who truly loved them, "
+            "and three strangers claim they are the one"
+        ),
+        "theme_zh": "垂死的密碼學家留下的不是遺囑而是一條只有真正愛過他的人才能解密的訊息，三個陌生人都聲稱自己就是那個人",
+    },
+    {
+        "label": "⏳ 記憶租稅者",
+        "theme_en": (
+            "In a world where memories are taxable assets, "
+            "a memory auditor tasked with seizing unpaid memory debt "
+            "discovers their own childhood has already been legally repossessed"
+        ),
+        "theme_zh": "在記憶是應課稅資產的世界中，一位奉命扣押未繳稅記憶的記憶審計師發現自己的童年已被合法沒收",
+    },
+    {
+        "label": "🌙 月球考古最後發現",
+        "theme_en": (
+            "On the last day before a lunar base is decommissioned, "
+            "an archaeologist finds a hand-carved inscription behind a ventilation panel—"
+            "dated 40,000 years ago, in perfect modern Chinese"
+        ),
+        "theme_zh": "月球基地停用前的最後一天，考古學家在通風板後發現一段手刻銘文——日期是4萬年前，卻是完美的現代中文",
+    },
 ]
 
-# ── Style Templates (10) ──────────────────────────────────────────────────────
+# ── Style Templates (20) ──────────────────────────────────────────────────────
 
 STYLE_TEMPLATES: list[dict] = [
     {
@@ -291,6 +490,87 @@ STYLE_TEMPLATES: list[dict] = [
             "dynamic hero lighting, epic fantasy or sci-fi environment design, "
             "Artstation quality, dramatic color story, cinematic wide-angle composition, "
             "particle effects, 4K game art"
+        ),
+    },
+    {
+        "label": "🌸 水彩插畫",
+        "style": (
+            "delicate watercolor illustration, translucent layered washes, "
+            "wet-on-wet bleeding edges, handmade paper texture, "
+            "soft natural light, botanical detail, feminine pastel palette, fine art print quality"
+        ),
+    },
+    {
+        "label": "🔥 暗黑奇幻",
+        "style": (
+            "dark fantasy illustration, sumptuous deep jewel tones, "
+            "gothic cathedral lighting, eldritch horror atmosphere, "
+            "highly detailed creature design, dynamic composition, Zdzisław Beksiński inspired, 8k"
+        ),
+    },
+    {
+        "label": "🧊 極簡 Minimalist",
+        "style": (
+            "ultra-minimalist graphic design, negative space dominates, "
+            "single accent hue on clean white ground, Swiss International Style typography, "
+            "geometric abstraction, high-contrast silhouette, editorial magazine quality"
+        ),
+    },
+    {
+        "label": "🎠 Lo-Fi 夢境",
+        "style": (
+            "lo-fi aesthetic dream scene, warm vintage grain, soft vignette, "
+            "cozy bedroom window light, muted cassette-tape palette, "
+            "nostalgic 90s Japanese animation mood, hazy bokeh fireflies, painterly softness"
+        ),
+    },
+    {
+        "label": "🌋 超現實 Surrealism",
+        "style": (
+            "surrealist fine art photography, impossible architectural dreamscapes, "
+            "Salvador Dalí and Magritte visual language, soft shadow physics defied, "
+            "hyper-real texture detail in absurdist composition, museum quality print"
+        ),
+    },
+    {
+        "label": "🌿 自然紀錄片攝影",
+        "style": (
+            "nature documentary photography, ultra-wide macro and telephoto blend, "
+            "BBC Earth visual quality, natural golden-diffused ambient light, "
+            "high-ISO grain in shadow areas, authentic untouched colour, 8K broadcast quality"
+        ),
+    },
+    {
+        "label": "🏙 建築視覺化",
+        "style": (
+            "architectural visualization render, photorealistic exterior, "
+            "overcast soft diffused sky, precise material shading — glass, concrete, steel, "
+            "people and greenery for scale, Zaha Hadid Studio aesthetic, 8K CGI quality"
+        ),
+    },
+    {
+        "label": "🖼 像素藝術",
+        "style": (
+            "pixel art, 32x32 sprite upscaled cleanly, limited 16-colour palette, "
+            "hard anti-aliased edges, nostalgic SNES-era RPG aesthetic, "
+            "dithering for shadow gradients, isometric or side-scroll perspective"
+        ),
+    },
+    {
+        "label": "✏ 炭筆素描",
+        "style": (
+            "expressive charcoal sketch on textured newsprint, "
+            "bold gestural strokes, high contrast smudged shadows, "
+            "visible paper tooth texture, life-drawing atelier quality, "
+            "white chalk highlights, monochrome noir drama"
+        ),
+    },
+    {
+        "label": "🎪 波普藝術",
+        "style": (
+            "pop art illustration, Roy Lichtenstein thick black outlines, "
+            "Ben-Day dot halftone shading, bold flat primary colour blocks, "
+            "comic speech bubble, high colour saturation, 60s commercial print aesthetic"
         ),
     },
 ]
