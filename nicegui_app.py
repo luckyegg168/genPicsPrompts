@@ -99,8 +99,8 @@ def character_inputs(include_autocomplete: bool = True) -> dict:
         with ui.row().classes("flex-wrap gap-3 w-full mt-2"):
             with ui.column().classes("flex-1 min-w-48"):
                 refs["name"]     = ui.input(label="角色名稱", value="Hero").classes("w-full")
-                refs["desc_en"]  = ui.textarea(label="英文描述", rows=3).classes("w-full")
-                refs["desc_zh"]  = ui.textarea(label="中文描述", rows=3).classes("w-full")
+                refs["desc_en"]  = ui.textarea(label="英文描述").props("rows=3").classes("w-full")
+                refs["desc_zh"]  = ui.textarea(label="中文描述").props("rows=3").classes("w-full")
             with ui.column().classes("flex-1 min-w-48"):
                 refs["char_tmpl"] = ui.select(CHAR_LABELS, label="套用角色模板",
                                                value=CHAR_LABELS[0]).classes("w-full")
@@ -114,8 +114,8 @@ def theme_style_inputs() -> dict:
     with ui.expansion("🎭 主題 & 風格", icon="movie", value=True).classes("w-full bg-gray-800"):
         with ui.row().classes("flex-wrap gap-3 w-full"):
             with ui.column().classes("flex-1 min-w-48"):
-                refs["theme"]      = ui.textarea(label="故事主題 / Story theme", rows=2,
-                                                  placeholder="輸入主題或套用模板").classes("w-full")
+                refs["theme"]      = ui.textarea(label="故事主題 / Story theme",
+                                                  placeholder="輸入主題或套用模板").props("rows=2").classes("w-full")
                 refs["story_tmpl"] = ui.select(STORY_LABELS, label="主題模板",
                                                 value=STORY_LABELS[0]).classes("w-full")
                 refs["apply_story"] = ui.button("套用故事", icon="style")
@@ -170,8 +170,8 @@ def page_single():
         with ui.expansion("🎬 電影規格", icon="camera", value=True).classes("w-full bg-gray-800"):
             cinrefs = cinema_inputs()
 
-        result_en  = ui.textarea(label="✅ English Prompt", rows=5).classes("w-full font-mono")
-        result_zh  = ui.textarea(label="✅ 中文提示詞", rows=5).classes("w-full font-mono")
+        result_en  = ui.textarea(label="✅ English Prompt").props("rows=5").classes("w-full font-mono")
+        result_zh  = ui.textarea(label="✅ 中文提示詞").props("rows=5").classes("w-full font-mono")
         result_det = ui.markdown("").classes("w-full text-gray-300")
 
         async def generate():
@@ -451,8 +451,8 @@ def page_image2prompt():
         with ui.expansion("🎬 電影規格", icon="camera", value=False).classes("w-full bg-gray-800"):
             cinrefs = cinema_inputs()
 
-        result_en  = ui.textarea(label="✅ English Prompt", rows=5).classes("w-full font-mono")
-        result_zh  = ui.textarea(label="✅ 中文提示詞", rows=5).classes("w-full font-mono")
+        result_en  = ui.textarea(label="✅ English Prompt").props("rows=5").classes("w-full font-mono")
+        result_zh  = ui.textarea(label="✅ 中文提示詞").props("rows=5").classes("w-full font-mono")
 
         async def gen_from_upload():
             try:
@@ -517,8 +517,8 @@ def page_library():
 
         with ui.dialog() as edit_dialog, ui.card().classes("w-full max-w-2xl p-4"):
             ui.label("✏️ 編輯提示詞").classes("text-xl font-bold text-white")
-            edit_en  = ui.textarea(label="English Prompt", rows=5).classes("w-full font-mono")
-            edit_zh  = ui.textarea(label="中文提示詞", rows=5).classes("w-full font-mono")
+            edit_en  = ui.textarea(label="English Prompt").props("rows=5").classes("w-full font-mono")
+            edit_zh  = ui.textarea(label="中文提示詞").props("rows=5").classes("w-full font-mono")
             edit_neg = ui.input(label="負面提示詞").classes("w-full")
 
             def save_edit():
