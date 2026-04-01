@@ -17,6 +17,19 @@ import recorder
 import templates
 from models import Character, CinemaSettings, PromptSequence
 
+# ── Global exception handler ──────────────────────────────────────────────────
+# NiceGUI raises RuntimeError("The parent element this slot belongs to has been
+# deleted") when an async callback completes after the user has navigated away.
+# This is a harmless race condition; suppress it to keep logs clean.
+
+def _on_exception(exc: Exception) -> None:
+    msg = str(exc)
+    if isinstance(exc, RuntimeError) and "parent element" in msg and "slot" in msg:
+        return  # harmless navigation race condition — ignore silently
+    applog.log.error(f"Unhandled exception: {exc}", exc_info=True)
+
+app.on_exception(_on_exception)
+
 # ── constants ─────────────────────────────────────────────────────────────────
 ASPECT_RATIOS    = ["16:9", "9:16", "1:1", "4:3", "21:9", "2.35:1 Anamorphic", "4:5", "3:2"]
 RESOLUTIONS      = ["4K (3840×2160)", "8K (7680×4320)", "2K (2560×1440)", "1080p (1920×1080)"]
