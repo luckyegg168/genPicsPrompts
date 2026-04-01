@@ -22,6 +22,9 @@ OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3")
 OLLAMA_VISION_MODEL: str = os.getenv("OLLAMA_VISION_MODEL", "llava")
 
+# ── Think Mode ────────────────────────────────────────────────────────────────
+THINK_MODE: bool = os.getenv("THINK_MODE", "true").lower() == "true"
+
 # ── Paths ─────────────────────────────────────────────────────────────────────
 IMAGES_DIR = Path(os.getenv("IMAGES_DIR", "images"))
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
