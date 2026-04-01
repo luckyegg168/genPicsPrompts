@@ -1,40 +1,52 @@
 @echo off
 title AI Image Prompt Generator
+setlocal
 
-:: ============================================================
-:: PUT YOUR API KEYS HERE
-:: ============================================================
-set OPENROUTER_API_KEY=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
+set VENV_PYTHON=.venv\Scripts\python.exe
+set VENV_PIP=.venv\Scripts\pip.exe
 
-:: Text model (prompt generation) — Qwen3.6 Plus Preview
-set OPENROUTER_MODEL=qwen/qwen3.6-plus-preview:free
+:: ── Create venv if missing ──────────────────────────────────────────────────
+if not exist "%VENV_PYTHON%" (
+    echo [setup] Creating virtual environment...
+    python -m venv .venv
+    if errorlevel 1 (
+        echo [ERROR] Failed to create venv. Make sure Python 3.10+ is installed.
+        pause & exit /b 1
+    )
+)
 
-:: Vision model (image analysis) — ByteDance Seed 2.0 Mini
-set OPENROUTER_VISION_MODEL=bytedance-seed/seed-2.0-mini
-
-:: Output folders
-set OUTPUT_DIR=outputs
-set IMAGES_DIR=images
-:: ============================================================
-
-echo.
-echo  AI Image Prompt Generator
-echo  -------------------------
-echo  Text model  : %OPENROUTER_MODEL%
-echo  Vision model: %OPENROUTER_VISION_MODEL%
-echo.
-
-:: Install dependencies if not already installed
-python -m pip show nicegui >nul 2>&1
+:: ── Install / upgrade dependencies ─────────────────────────────────────────
+"%VENV_PIP%" show nicegui >nul 2>&1
 if errorlevel 1 (
-    echo Installing dependencies...
-    python -m pip install -r requirements.txt
+    echo [setup] Installing dependencies into .venv ...
+    "%VENV_PIP%" install -r requirements.txt
+    if errorlevel 1 (
+        echo [ERROR] pip install failed.
+        pause & exit /b 1
+    )
     echo.
 )
 
-:: Launch NiceGUI Desktop App
-echo Starting Prompt Studio (NiceGUI desktop) ...
+:: ── API keys: load from .env (do NOT hardcode keys here) ───────────────────
+:: Copy .env.example to .env and fill in your key if .env is missing
+if not exist ".env" (
+    echo [WARNING] .env not found. Copying .env.example as template...
+    if exist ".env.example" (
+        copy ".env.example" ".env" >nul
+        echo [WARNING] Please edit .env and set OPENROUTER_API_KEY, then restart.
+        notepad .env
+        pause & exit /b 0
+    ) else (
+        echo [WARNING] No .env or .env.example found. Settings page can set the key.
+    )
+)
+
 echo.
-python nicegui_app.py
+echo  AI Image Prompt Generator  ^|  venv: .venv
+echo  ─────────────────────────────────────────
+echo  Starting Prompt Studio (NiceGUI) ...
+echo.
+
+"%VENV_PYTHON%" nicegui_app.py
 
 pause
