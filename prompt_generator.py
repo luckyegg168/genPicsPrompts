@@ -354,3 +354,114 @@ def generate_sequence(
         previous = frame
 
     return sequence
+
+
+# ---------------------------------------------------------------------------
+# AI Continuation / Smart-complete
+# ---------------------------------------------------------------------------
+
+CONTINUATION_SYSTEM_PROMPT = """You are a professional cinematographer and AI image prompt writer.
+
+The user provides a BASE PROMPT with LOCKED fields (fields marked as fixed that must not change)
+and UNLOCKED fields (empty or flagged for AI to fill in).
+
+Your task:
+1. Keep LOCKED fields exactly as provided.
+2. Fill in UNLOCKED fields creatively, maintaining visual and narrative consistency with locked fields.
+3. If a direction hint is given (e.g. "sad expression", "night scene", "next action"), apply it to the relevant unlocked fields.
+4. Assemble a complete, vivid prompt from all fields.
+
+Return ONLY valid JSON:
+{
+  "subject_en": "character description (who, appearance, clothing)",
+  "subject_zh": "主體描述",
+  "action_en": "what the character is doing",
+  "action_zh": "角色動作",
+  "expression_en": "facial expression and emotion",
+  "expression_zh": "臉部表情與情緒",
+  "scene_en": "environment, background, atmosphere",
+  "scene_zh": "場景環境",
+  "style_en": "art style and technical tags",
+  "style_zh": "風格標籤",
+  "prompt_en": "FULL assembled English prompt — all fields merged, cinematic tags at end",
+  "prompt_zh": "FULL assembled Chinese prompt"
+}"""
+
+
+def generate_continuation(
+    locked_fields: dict,
+    unlock_targets: list[str],
+    direction_hint: str = "",
+    style: str = "cinematic photography, highly detailed, 8k",
+    negative_prompt: str = "",
+) -> dict:
+    """Generate AI continuation/smart-complete for a prompt.
+
+    Args:
+        locked_fields: dict of field_name → value that AI must keep unchanged.
+                       Keys: subject_en, subject_zh, action_en, action_zh,
+                             expression_en, expression_zh, scene_en, scene_zh,
+                             style_en, style_zh
+        unlock_targets: list of field names AI should fill/modify.
+        direction_hint: free-text user hint like "surprise expression" or "next dramatic scene".
+        style: default style if style fields are unlocked.
+        negative_prompt: passed through unchanged.
+
+    Returns:
+        dict with all prompt fields + prompt_en + prompt_zh.
+    """
+    # Build user prompt
+    locked_lines = []
+    for k, v in locked_fields.items():
+        if v:
+            locked_lines.append(f"  [LOCKED] {k}: {v}")
+
+    unlock_lines = [f"  [FILL] {t}: (AI should generate this)" for t in unlock_targets]
+
+    hint_line = f"\nDirection hint: {direction_hint}" if direction_hint.strip() else ""
+    style_line = f"\nDefault style (use if style is unlocked): {style}"
+
+    user_prompt = (
+        "Base prompt fields:\n"
+        + "\n".join(locked_lines)
+        + "\n"
+        + "\n".join(unlock_lines)
+        + hint_line
+        + style_line
+        + "\n\nFill the [FILL] fields and output the complete JSON."
+    )
+
+    data = agent.chat(
+        system_prompt=CONTINUATION_SYSTEM_PROMPT,
+        user_prompt=user_prompt,
+    )
+
+    # Merge locked fields back (override any AI hallucination on locked fields)
+    result = dict(data)
+    for k, v in locked_fields.items():
+        if v:
+            result[k] = v
+
+    # Rebuild assembled prompts
+    parts_en = [
+        result.get("subject_en", ""),
+        result.get("action_en", ""),
+        result.get("expression_en", ""),
+        result.get("scene_en", ""),
+        result.get("style_en", style),
+    ]
+    parts_zh = [
+        result.get("subject_zh", ""),
+        result.get("action_zh", ""),
+        result.get("expression_zh", ""),
+        result.get("scene_zh", ""),
+        result.get("style_zh", ""),
+    ]
+
+    if not result.get("prompt_en"):
+        result["prompt_en"] = ", ".join(p for p in parts_en if p)
+    if not result.get("prompt_zh"):
+        result["prompt_zh"] = "，".join(p for p in parts_zh if p)
+
+    result["negative_prompt"] = negative_prompt
+    return result

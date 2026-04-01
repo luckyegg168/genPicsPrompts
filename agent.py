@@ -10,11 +10,21 @@ from openai import OpenAI
 import config
 
 
-def _build_client() -> OpenAI:
-    return OpenAI(
-        api_key=config.OPENROUTER_API_KEY,
-        base_url=config.OPENROUTER_BASE_URL,
-    )
+def _build_client(vision: bool = False) -> tuple[OpenAI, str]:
+    """Return (client, model) based on runtime config.API_PROVIDER."""
+    if config.API_PROVIDER == "ollama":
+        client = OpenAI(
+            api_key="ollama",          # Ollama ignores the key value
+            base_url=config.OLLAMA_BASE_URL,
+        )
+        model = config.OLLAMA_VISION_MODEL if vision else config.OLLAMA_MODEL
+    else:  # openrouter (default)
+        client = OpenAI(
+            api_key=config.OPENROUTER_API_KEY,
+            base_url=config.OPENROUTER_BASE_URL,
+        )
+        model = config.OPENROUTER_VISION_MODEL if vision else config.OPENROUTER_MODEL
+    return client, model
 
 
 import re
@@ -45,9 +55,9 @@ def chat(
     max_retries: int = 3,
     response_format: str = "json",
 ) -> dict[str, Any]:
-    """Send a text-only chat request to OpenRouter."""
-    client = _build_client()
-    chosen_model = model or config.OPENROUTER_MODEL
+    """Send a text-only chat request (OpenRouter or Ollama)."""
+    client, default_model = _build_client(vision=False)
+    chosen_model = model or default_model
     content = ""
 
     for attempt in range(1, max_retries + 1):
@@ -98,8 +108,8 @@ def chat_with_image(
         max_retries: Retry attempts.
         response_format: 'json' or 'text'.
     """
-    client = _build_client()
-    chosen_model = model or config.OPENROUTER_VISION_MODEL
+    client, default_vision_model = _build_client(vision=True)
+    chosen_model = model or default_vision_model
     content = ""
 
     user_message = [

@@ -748,6 +748,332 @@ def page_logs():
         ui.timer(3.0, refresh_logs)
 
 
+# ── Page: AI 補完 (Continuation) ─────────────────────────────────────────────
+
+FIELD_LABELS = {
+    "subject_en":    "主體 Subject (EN)",
+    "subject_zh":    "主體 Subject (ZH)",
+    "action_en":     "動作 Action (EN)",
+    "action_zh":     "動作 Action (ZH)",
+    "expression_en": "表情 Expression (EN)",
+    "expression_zh": "表情 Expression (ZH)",
+    "scene_en":      "場景 Scene (EN)",
+    "scene_zh":      "場景 Scene (ZH)",
+    "style_en":      "風格 Style (EN)",
+    "style_zh":      "風格 Style (ZH)",
+}
+FIELD_KEYS = list(FIELD_LABELS.keys())
+
+
+@ui.page("/continue")
+def page_continue():
+    _page_setup()
+    _sidebar()
+    with ui.column().classes("w-full max-w-5xl mx-auto p-4 gap-4"):
+        ui.label("🤖 AI 補完提示詞").classes("text-2xl font-bold text-white")
+        ui.label("鎖定想保留的欄位，讓 AI 補完其餘部分。每個欄位都可個別編輯。").classes(
+            "text-gray-400 text-sm"
+        )
+
+        # ── Load from library ─────────────────────────────────────────
+        with ui.expansion("📂 從提示詞庫載入", icon="folder_open", value=False).classes(
+            "w-full bg-gray-800"
+        ):
+            with ui.row().classes("items-end gap-2 w-full"):
+                lib_kw = ui.input(label="搜尋關鍵字").classes("flex-1")
+                lib_type = ui.select(["image", "video"], value="image", label="類型").classes("w-24")
+
+                lib_results   = ui.column().classes("w-full gap-2 mt-2")
+
+                def do_lib_search():
+                    kw = lib_kw.value.strip()
+                    lib_results.clear()
+                    data = (recorder.search_by_keyword(kw) if lib_type.value == "image"
+                            else recorder.search_video_by_keyword(kw)) if kw else \
+                           recorder.load_all_prompts(lib_type.value, 20)
+                    with lib_results:
+                        if not data:
+                            ui.label("無結果").classes("text-gray-500")
+                            return
+                        for rec in data[:20]:
+                            _pen = rec.get("prompt_en", "")
+                            _pzh = rec.get("prompt_zh", "")
+                            _ae  = rec.get("action_en", "")
+                            _az  = rec.get("action_zh", "")
+                            _ee  = rec.get("expression_en", "")
+                            _ez  = rec.get("expression_zh", "")
+                            _se  = rec.get("scene_en", "")
+                            _sz  = rec.get("scene_zh", "")
+
+                            def _load(r=rec, pe=_pen, pz=_pzh,
+                                      ae=_ae, az=_az, ee=_ee, ez=_ez, se=_se, sz=_sz):
+                                field_inputs["subject_en"].set_value(
+                                    r.get("character", {}).get("description", pe[:80]) if isinstance(r.get("character"), dict) else pe[:80]
+                                )
+                                field_inputs["subject_zh"].set_value(
+                                    r.get("character", {}).get("description_zh", pz[:80]) if isinstance(r.get("character"), dict) else pz[:80]
+                                )
+                                field_inputs["action_en"].set_value(ae)
+                                field_inputs["action_zh"].set_value(az)
+                                field_inputs["expression_en"].set_value(ee)
+                                field_inputs["expression_zh"].set_value(ez)
+                                field_inputs["scene_en"].set_value(se)
+                                field_inputs["scene_zh"].set_value(sz)
+                                field_inputs["style_en"].set_value(r.get("style_en", DEFAULT_STYLE))
+                                field_inputs["style_zh"].set_value(r.get("style_zh", ""))
+                                ui.notify("已載入 ✓", type="positive")
+
+                            with ui.card().classes("w-full bg-gray-900 p-2"):
+                                ui.label(_pen[:120] + ("…" if len(_pen) > 120 else "")).classes(
+                                    "text-xs text-gray-300 font-mono"
+                                )
+                                ui.button("載入這筆", icon="download", on_click=_load).classes(
+                                    "bg-teal-700 text-white text-xs mt-1"
+                                )
+
+                ui.button("🔍 搜尋", icon="search", on_click=do_lib_search).classes(
+                    "bg-blue-600 text-white px-3 py-2"
+                )
+
+        # ── Field grid with lock toggles ──────────────────────────────
+        ui.label("📝 欄位編輯（勾選 = 鎖定，AI 不修改）").classes("font-semibold text-gray-300 mt-2")
+
+        field_inputs: dict[str, ui.textarea] = {}
+        field_locks:  dict[str, ui.checkbox] = {}
+
+        # Arrange in pairs (EN / ZH) side by side
+        field_pairs = [
+            ("subject_en",    "subject_zh"),
+            ("action_en",     "action_zh"),
+            ("expression_en", "expression_zh"),
+            ("scene_en",      "scene_zh"),
+            ("style_en",      "style_zh"),
+        ]
+
+        for en_key, zh_key in field_pairs:
+            with ui.row().classes("w-full gap-2 items-start"):
+                for key in (en_key, zh_key):
+                    with ui.column().classes("flex-1 gap-1"):
+                        with ui.row().classes("items-center gap-2"):
+                            field_locks[key] = ui.checkbox("🔒 鎖定").classes(
+                                "text-xs text-yellow-400"
+                            )
+                            ui.label(FIELD_LABELS[key]).classes("text-xs text-gray-400")
+                        field_inputs[key] = ui.textarea().props("rows=2").classes(
+                            "w-full font-mono text-sm"
+                        )
+                        _copy_btn(lambda k=key: field_inputs[k].value)
+
+        neg_input = ui.input(label="負面提示詞", value=DEFAULT_NEG).classes("w-full")
+
+        # ── Direction hint ────────────────────────────────────────────
+        direction = ui.input(
+            label="🎯 補完方向 (可選，e.g. '下一幕在雨中', '改成驚訝表情', 'next tense action')"
+        ).classes("w-full")
+
+        # ── Result area ───────────────────────────────────────────────
+        ui.separator().classes("bg-gray-700 my-2")
+        ui.label("✅ 補完結果").classes("font-semibold text-green-300")
+
+        result_fields: dict[str, ui.textarea] = {}
+        result_pairs = list(field_pairs)
+
+        for en_key, zh_key in result_pairs:
+            with ui.row().classes("w-full gap-2 items-start"):
+                for key in (en_key, zh_key):
+                    with ui.column().classes("flex-1 gap-1"):
+                        ui.label(FIELD_LABELS[key]).classes("text-xs text-gray-400")
+                        result_fields[key] = ui.textarea().props("rows=2").classes(
+                            "w-full font-mono text-sm bg-gray-800"
+                        )
+                        _copy_btn(lambda k=key: result_fields[k].value)
+
+        with ui.row().classes("items-start gap-2 w-full"):
+            full_en = ui.textarea(label="📋 完整英文提示詞").props("rows=4").classes(
+                "flex-1 font-mono bg-gray-800"
+            )
+            _copy_btn(lambda: full_en.value)
+        with ui.row().classes("items-start gap-2 w-full"):
+            full_zh = ui.textarea(label="📋 完整中文提示詞").props("rows=4").classes(
+                "flex-1 font-mono bg-gray-800"
+            )
+            _copy_btn(lambda: full_zh.value, color="bg-amber-500")
+
+        # ── Generate button ───────────────────────────────────────────
+        gen_btn = ui.button("🤖 AI 補完", icon="auto_fix_high").classes(
+            "bg-rose-600 text-white text-lg px-6 py-3 rounded-xl"
+        )
+
+        async def do_continue():
+            try:
+                config.validate_config()
+            except EnvironmentError as e:
+                ui.notify(str(e), type="negative"); return
+
+            locked: dict = {}
+            unlocked: list = []
+            for key in FIELD_KEYS:
+                val = field_inputs[key].value.strip()
+                if field_locks[key].value and val:
+                    locked[key] = val
+                else:
+                    unlocked.append(key)
+
+            if not locked:
+                ui.notify("請至少鎖定一個欄位作為 AI 補完的基礎", type="warning"); return
+
+            gen_btn.set_text("⏳ AI 補完中…")
+            try:
+                result = await run.io_bound(
+                    prompt_generator.generate_continuation,
+                    locked_fields=locked,
+                    unlock_targets=unlocked,
+                    direction_hint=direction.value.strip(),
+                    style=field_inputs["style_en"].value.strip() or DEFAULT_STYLE,
+                    negative_prompt=neg_input.value,
+                )
+                for key in FIELD_KEYS:
+                    v = result.get(key, "")
+                    result_fields[key].set_value(v)
+                    # Also propagate back to input fields if unlocked (so user can re-lock and regenerate)
+                    if not field_locks[key].value:
+                        field_inputs[key].set_value(v)
+
+                full_en.set_value(result.get("prompt_en", ""))
+                full_zh.set_value(result.get("prompt_zh", ""))
+                ui.notify("✅ 補完完成", type="positive")
+                applog.log.info(f"AI continuation generated. locked={list(locked.keys())}")
+            except Exception as exc:
+                applog.log.error(f"continuation error: {exc}", exc_info=True)
+                ui.notify(f"補完失敗：{exc}", type="negative")
+            finally:
+                gen_btn.set_text("🤖 AI 補完")
+
+        gen_btn.on("click", do_continue)
+
+        # ── Save result to library ───────────────────────────────────
+        async def save_result():
+            from models import PromptFrame, Character, CinemaSettings
+            import uuid
+            frame = PromptFrame(
+                session_id=str(uuid.uuid4())[:8],
+                frame_index=1,
+                character=Character(
+                    description=result_fields.get("subject_en", ui.textarea()).value or "AI completed",
+                    description_zh=result_fields.get("subject_zh", ui.textarea()).value or "",
+                ),
+                action_en=result_fields["action_en"].value,
+                action_zh=result_fields["action_zh"].value,
+                expression_en=result_fields["expression_en"].value,
+                expression_zh=result_fields["expression_zh"].value,
+                scene_en=result_fields["scene_en"].value,
+                scene_zh=result_fields["scene_zh"].value,
+                prompt_en=full_en.value,
+                prompt_zh=full_zh.value,
+                negative_prompt=neg_input.value,
+                style_en=result_fields["style_en"].value,
+                style_zh=result_fields["style_zh"].value,
+            )
+            await run.io_bound(recorder.save_frame, frame)
+            ui.notify("✅ 已儲存至提示詞庫", type="positive")
+            applog.log.info(f"Continuation saved to library: {frame.session_id}")
+
+        ui.button("💾 儲存至提示詞庫", icon="save", on_click=save_result).classes(
+            "bg-green-600 text-white px-5 py-2 rounded-xl"
+        )
+
+
+# ── Page: Settings ────────────────────────────────────────────────────────────
+
+@ui.page("/settings")
+def page_settings():
+    _page_setup()
+    _sidebar()
+    with ui.column().classes("w-full max-w-3xl mx-auto p-4 gap-6"):
+        ui.label("⚙ 設定").classes("text-2xl font-bold text-white")
+
+        # ── Provider selector ─────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 p-4 gap-3"):
+            ui.label("API 來源").classes("text-lg font-semibold text-indigo-300")
+            provider_radio = ui.radio(
+                {"openrouter": "☁ OpenRouter (雲端)", "ollama": "🖥 Ollama (本機)"},
+                value=config.API_PROVIDER,
+            ).classes("text-white")
+
+        # ── OpenRouter settings ───────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 p-4 gap-3") as or_card:
+            ui.label("☁ OpenRouter 設定").classes("text-lg font-semibold text-blue-300")
+            or_key   = ui.input(label="API Key", value=config.OPENROUTER_API_KEY,
+                                 password=True, password_toggle_button=True).classes("w-full")
+            or_model = ui.input(label="文字模型", value=config.OPENROUTER_MODEL).classes("w-full")
+            or_vis   = ui.input(label="視覺模型", value=config.OPENROUTER_VISION_MODEL).classes("w-full")
+            ui.link("取得 API Key → openrouter.ai/keys",
+                    "https://openrouter.ai/keys", new_tab=True).classes("text-xs text-blue-400")
+
+        # ── Ollama settings ───────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 p-4 gap-3") as ol_card:
+            ui.label("🖥 Ollama 本機設定").classes("text-lg font-semibold text-green-300")
+            ol_url   = ui.input(label="Ollama Base URL", value=config.OLLAMA_BASE_URL).classes("w-full")
+            ol_model = ui.input(label="文字模型 (e.g. llama3, mistral)", value=config.OLLAMA_MODEL).classes("w-full")
+            ol_vis   = ui.input(label="視覺模型 (e.g. llava)", value=config.OLLAMA_VISION_MODEL).classes("w-full")
+            ui.label("確保 Ollama 已在本機執行：ollama serve").classes("text-xs text-gray-400")
+
+        # Show/hide cards based on selection
+        def _update_cards():
+            is_or = provider_radio.value == "openrouter"
+            or_card.set_visibility(is_or)
+            ol_card.set_visibility(not is_or)
+
+        provider_radio.on("update:model-value", lambda: _update_cards())
+        _update_cards()
+
+        # ── Save ──────────────────────────────────────────────────────
+        def do_save():
+            config.save_settings(
+                provider=provider_radio.value,
+                openrouter_key=or_key.value.strip(),
+                openrouter_model=or_model.value.strip() or config.OPENROUTER_MODEL,
+                openrouter_vision_model=or_vis.value.strip() or config.OPENROUTER_VISION_MODEL,
+                ollama_base_url=ol_url.value.strip() or "http://localhost:11434/v1",
+                ollama_model=ol_model.value.strip() or "llama3",
+                ollama_vision_model=ol_vis.value.strip() or "llava",
+            )
+            applog.log.info(f"Settings saved. provider={config.API_PROVIDER}")
+            ui.notify(f"✅ 設定已儲存（{config.API_PROVIDER}）", type="positive")
+
+        async def do_test():
+            try:
+                config.validate_config()
+            except EnvironmentError as e:
+                ui.notify(str(e), type="negative"); return
+            try:
+                r = await run.io_bound(
+                    prompt_generator.autocomplete_character, "test connection"
+                )
+                ui.notify(f"✅ 連線成功 — model responded: {r.get('name','OK')}", type="positive")
+            except Exception as exc:
+                ui.notify(f"❌ 連線失敗：{exc}", type="negative")
+
+        with ui.row().classes("gap-3"):
+            ui.button("💾 儲存設定", icon="save", on_click=do_save).classes(
+                "bg-green-600 text-white px-6 py-3 rounded-xl"
+            )
+            ui.button("🔌 測試連線", icon="electrical_services", on_click=do_test).classes(
+                "bg-blue-600 text-white px-6 py-3 rounded-xl"
+            )
+
+        # ── Current config display ────────────────────────────────────
+        def show_info():
+            prov = config.API_PROVIDER
+            if prov == "ollama":
+                return f"**目前使用**：Ollama 本機 — `{config.OLLAMA_BASE_URL}` 模型：`{config.OLLAMA_MODEL}`"
+            key_hint = ("*" * 8 + config.OPENROUTER_API_KEY[-4:]) if len(config.OPENROUTER_API_KEY) > 4 else "(未設定)"
+            return f"**目前使用**：OpenRouter — 模型：`{config.OPENROUTER_MODEL}` Key：`{key_hint}`"
+
+        info_md = ui.markdown(show_info()).classes("text-gray-300 text-sm")
+        ui.timer(2.0, lambda: info_md.set_content(show_info()))
+
+
 # ── Sidebar navigation ────────────────────────────────────────────────────────
 
 def _sidebar() -> None:
@@ -760,10 +1086,12 @@ def _sidebar() -> None:
         _nav_btn("🔄 圖片序列",    "/sequence",    "burst_mode")
         _nav_btn("🎬 影片提示詞",  "/video",       "movie")
         _nav_btn("📷 以圖生文",    "/image2prompt","image_search")
+        _nav_btn("🤖 AI 補完",     "/continue",    "auto_fix_high")
         _nav_btn("📋 提示詞庫",    "/library",     "library_books")
         _nav_btn("📜 操作記錄",    "/logs",        "history")
+        _nav_btn("⚙ 設定",        "/settings",    "settings")
         ui.separator().classes("bg-gray-700 mt-auto")
-        ui.label("v2.0 NiceGUI").classes("text-xs text-gray-600 px-4 py-2")
+        ui.label("v2.1 NiceGUI").classes("text-xs text-gray-600 px-4 py-2")
 
 
 def _nav_btn(label: str, path: str, icon: str) -> None:
