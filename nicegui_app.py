@@ -100,25 +100,23 @@ def _copy_btn(text_getter, color: str = "bg-amber-600") -> ui.button:
 
 # ── Connection status row ─────────────────────────────────────────────────────
 
-def _conn_status_row() -> None:
-    """Render a one-line connection-status badge (reads agent._last_call_time)."""
+def _conn_status_label() -> "ui.label":
+    """Render a connection-status badge and return the label for live updates."""
     import time as _time
     import agent as _agent
     elapsed = _time.time() - _agent._last_call_time if _agent._last_call_time else None
     idle_limit = config.IDLE_DISCONNECT_MINS * 60
 
     if elapsed is None:
-        txt, cls = "⚫ 尚未連線", "text-gray-500"
+        txt = "⚫ 尚未連線（點擊按鈕後自動連線）"
     elif elapsed < 60:
-        txt, cls = f"🟢 連線中（{int(elapsed)}s 前）", "text-green-400"
+        txt = f"🟢 上次連線 {int(elapsed)}s 前"
     elif elapsed < idle_limit:
-        m = int(elapsed // 60)
-        txt, cls = f"🟡 閒置 {m}m（生成時自動重連）", "text-yellow-400"
+        txt = f"🟡 閒置 {int(elapsed // 60)}m（生成時自動重連）"
     else:
-        m = int(elapsed // 60)
-        txt, cls = f"🔴 逾時 {m}m｜逾時上限 {config.IDLE_DISCONNECT_MINS}m（生成時自動重連）", "text-red-400"
+        txt = f"🔴 閒置逾時 {int(elapsed // 60)}m（生成時自動重連）"
 
-    ui.label(txt).classes(f"text-xs {cls} self-end")
+    return ui.label(txt).classes("text-xs text-gray-400")
 
 
 # ── Quick "Foolproof" generation widget ───────────────────────────────────────
@@ -135,7 +133,7 @@ def _quick_gen_widget() -> "callable":
         ui.label(
             "填入一句話描述，或直接留空讓 AI 自由發揮。按鈕會自動填滿所有欄位並立即生成。"
         ).classes("text-xs text-indigo-300 mb-1")
-        with ui.row().classes("items-end gap-3 w-full"):
+        with ui.row().classes("items-center gap-3 w-full"):
             quick_inp = ui.input(
                 label="畫面描述（可留空→隨機靈感）",
                 placeholder="e.g. 夜雨中的賽博龐克女殺手 / old samurai at sunset / 留空→隨機",
@@ -143,7 +141,7 @@ def _quick_gen_widget() -> "callable":
             quick_btn = ui.button("🪄 一鍵生成", icon="auto_awesome").classes(
                 "bg-indigo-600 text-white"
             )
-        _conn_status_row()
+        conn_lbl = _conn_status_label()
 
     def bind_to(crefs: dict, trefs: dict, gen_fn):
         async def _run():
@@ -154,8 +152,10 @@ def _quick_gen_widget() -> "callable":
                 ui.notify(str(e), type="negative"); return
             quick_btn.set_text("⏳ AI 思考中…")
             quick_btn.props("disabled")
+            conn_lbl.set_text("⏳ 連線中，請稍候…")
             try:
                 r = await run.io_bound(prompt_generator.autocomplete_character, desc)
+                conn_lbl.set_text("🟢 連線成功，填入欄位中…")
                 crefs["name"].set_value(r.get("name", "Hero"))
                 crefs["desc_en"].set_value(r.get("description_en", ""))
                 crefs["desc_zh"].set_value(r.get("description_zh", ""))
@@ -163,10 +163,12 @@ def _quick_gen_widget() -> "callable":
                     (r.get("theme_zh", "") + "\n" + r.get("theme_en", "")).strip()
                 )
                 trefs["style"].set_value(r.get("style", DEFAULT_STYLE))
-                ui.notify("✅ 欄位已填入，生成中…", type="info")
+                conn_lbl.set_text("🟢 欄位已填入，生成提示詞中…")
                 await gen_fn()
+                conn_lbl.set_text("✅ 生成完成")
             except Exception as exc:
                 applog.log.error(f"quick_gen error: {exc}", exc_info=True)
+                conn_lbl.set_text(f"🔴 失敗：{exc}")
                 ui.notify(f"一鍵生成失敗：{exc}", type="negative")
             finally:
                 quick_btn.set_text("🪄 一鍵生成")
@@ -190,7 +192,7 @@ def _quick_script_widget() -> "callable":
         ui.label(
             "輸入一句話故事概念（可留空），AI 會生成完整大綱並填入下方欄位後立即生成腳本。"
         ).classes("text-xs text-indigo-300 mb-1")
-        with ui.row().classes("items-end gap-3 w-full"):
+        with ui.row().classes("items-center gap-3 w-full"):
             qs_inp = ui.input(
                 label="故事概念（可留空→AI 自由發揮）",
                 placeholder="e.g. 孤獨駭客追查失憶之謎 / 末日後兩個孩子尋找安全地 / 留空→隨機",
@@ -198,7 +200,7 @@ def _quick_script_widget() -> "callable":
             qs_btn = ui.button("🪄 一鍵生成腳本", icon="auto_awesome").classes(
                 "bg-indigo-600 text-white"
             )
-        _conn_status_row()
+        qs_lbl = _conn_status_label()
 
     def bind_to(synopsis_field, gen_fn):
         async def _run():
@@ -209,14 +211,17 @@ def _quick_script_widget() -> "callable":
                 ui.notify(str(e), type="negative"); return
             qs_btn.set_text("⏳ AI 思考中…")
             qs_btn.props("disabled")
+            qs_lbl.set_text("⏳ 連線中，請稍候…")
             try:
                 r = await run.io_bound(prompt_generator.autocomplete_character, concept)
                 synopsis = (r.get("theme_zh", "") + "\n\n" + r.get("theme_en", "")).strip()
                 synopsis_field.set_value(synopsis or concept)
-                ui.notify("✅ 大綱已填入，生成腳本中…", type="info")
+                qs_lbl.set_text("🟢 大綱已填入，生成腳本中…")
                 await gen_fn()
+                qs_lbl.set_text("✅ 腳本生成完成")
             except Exception as exc:
                 applog.log.error(f"quick_script error: {exc}", exc_info=True)
+                qs_lbl.set_text(f"🔴 失敗：{exc}")
                 ui.notify(f"一鍵腳本失敗：{exc}", type="negative")
             finally:
                 qs_btn.set_text("🪄 一鍵生成腳本")
