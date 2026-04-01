@@ -1119,6 +1119,358 @@ def page_settings():
         ui.timer(2.0, lambda: info_md.set_content(show_info()))
 
 
+# ── Page: Prompt Editor ──────────────────────────────────────────────────────
+
+@ui.page("/editor")
+def page_editor():
+    _page_setup()
+    _sidebar()
+    with ui.column().classes("w-full max-w-5xl mx-auto p-4 gap-4"):
+        ui.label("✏️ 提示詞編輯器").classes("text-2xl font-bold text-white")
+        ui.label("自由撰寫、AI 輔助擴寫翻譯，一鍵儲存至提示詞庫").classes("text-gray-400 text-sm")
+
+        # ── AI Quick Expand ───────────────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 p-4 gap-3"):
+            ui.label("🤖 AI 輔助擴寫").classes("text-lg font-semibold text-indigo-300")
+            ui.label("輸入簡短描述，AI 自動生成完整 EN + 中文提示詞").classes("text-xs text-gray-400")
+            with ui.row().classes("items-end gap-3 w-full"):
+                brief_inp = ui.input(
+                    label="簡短描述（中英均可）",
+                    placeholder="e.g. 'dark elf archer at night' 或 '霓虹城市中的孤獨偵探'",
+                ).classes("flex-1")
+                expand_btn = ui.button("🤖 AI 擴寫", icon="auto_fix_high").classes(
+                    "bg-indigo-600 text-white px-4 py-2 rounded-lg"
+                )
+            expand_status = ui.label("").classes("text-sm text-gray-400")
+
+        # ── Main editor ───────────────────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 p-4 gap-4"):
+            ui.label("📝 編輯區").classes("text-lg font-semibold text-green-300")
+
+            # English prompt
+            with ui.column().classes("w-full gap-1"):
+                with ui.row().classes("items-center justify-between w-full"):
+                    ui.label("English Prompt").classes("text-sm font-semibold text-gray-300")
+                    en_char_lbl = ui.label("0 chars").classes("text-xs text-gray-500")
+                with ui.row().classes("items-start gap-2 w-full"):
+                    editor_en = ui.textarea(
+                        placeholder="Type or paste your English prompt here…"
+                    ).props("rows=8 outlined").classes("flex-1 font-mono text-sm")
+                    _copy_btn(lambda: editor_en.value)
+            editor_en.on("update:model-value",
+                          lambda: en_char_lbl.set_text(f"{len(editor_en.value)} chars"))
+
+            # Chinese prompt
+            with ui.column().classes("w-full gap-1"):
+                with ui.row().classes("items-center justify-between w-full"):
+                    ui.label("中文提示詞").classes("text-sm font-semibold text-gray-300")
+                    zh_char_lbl = ui.label("0 chars").classes("text-xs text-gray-500")
+                with ui.row().classes("items-start gap-2 w-full"):
+                    editor_zh = ui.textarea(
+                        placeholder="在此輸入或貼上中文提示詞…"
+                    ).props("rows=6 outlined").classes("flex-1 font-mono text-sm")
+                    _copy_btn(lambda: editor_zh.value, color="bg-amber-500")
+            editor_zh.on("update:model-value",
+                          lambda: zh_char_lbl.set_text(f"{len(editor_zh.value)} chars"))
+
+            # Negative + style
+            with ui.row().classes("items-center gap-2 w-full flex-wrap"):
+                editor_neg = ui.input(
+                    label="負面提示詞 Negative Prompt",
+                    value=DEFAULT_NEG,
+                ).classes("flex-1 min-w-72")
+                _copy_btn(lambda: editor_neg.value, color="bg-red-700")
+            editor_style = ui.input(
+                label="風格標籤 Style Tags",
+                value=DEFAULT_STYLE,
+            ).classes("w-full")
+
+        # ── Optional cinema meta ──────────────────────────────────────────────
+        with ui.expansion("🎥 電影規格（選填）", icon="camera", value=False).classes("w-full bg-gray-800"):
+            cinrefs_ed = cinema_inputs()
+
+        editor_status = ui.label("").classes("text-gray-400")
+
+        # ── AI expand callback ────────────────────────────────────────────────
+        async def do_expand():
+            brief = brief_inp.value.strip()
+            if not brief:
+                ui.notify("請輸入簡短描述", type="warning"); return
+            try:
+                config.validate_config()
+            except EnvironmentError as e:
+                ui.notify(str(e), type="negative"); return
+
+            expand_status.set_text("⏳ AI 擴寫中…")
+            expand_btn.set_enabled(False)
+            try:
+                result = await run.io_bound(
+                    prompt_generator.expand_and_translate_prompt, brief
+                )
+                editor_en.set_value(result.get("prompt_en", ""))
+                editor_zh.set_value(result.get("prompt_zh", ""))
+                if result.get("negative_prompt"):
+                    editor_neg.set_value(result["negative_prompt"])
+                if result.get("style_tags"):
+                    editor_style.set_value(result["style_tags"])
+                expand_status.set_text("✅ AI 擴寫完成")
+                en_char_lbl.set_text(f"{len(editor_en.value)} chars")
+                zh_char_lbl.set_text(f"{len(editor_zh.value)} chars")
+                applog.log.info("Editor: AI expand complete")
+            except Exception as exc:
+                expand_status.set_text(f"❌ {exc}")
+                ui.notify(f"擴寫失敗：{exc}", type="negative")
+                applog.log.error(f"Editor expand error: {exc}", exc_info=True)
+            finally:
+                expand_btn.set_enabled(True)
+
+        expand_btn.on("click", do_expand)
+
+        # ── Save to library ───────────────────────────────────────────────────
+        async def do_save_editor():
+            en = editor_en.value.strip()
+            zh = editor_zh.value.strip()
+            if not en and not zh:
+                ui.notify("English 或中文提示詞至少填一項", type="warning"); return
+            from models import Character, PromptFrame  # already imported at top
+            frame = PromptFrame(
+                frame_index=1,
+                session_id=str(uuid.uuid4())[:8],
+                character=Character(
+                    description=en[:80] if en else "manual",
+                    description_zh=zh[:80] if zh else "",
+                ),
+                action_en="(editor)",
+                action_zh="（編輯器）",
+                expression_en="", expression_zh="",
+                scene_en="",     scene_zh="",
+                style_en=editor_style.value or DEFAULT_STYLE,
+                style_zh="",
+                prompt_en=en,
+                prompt_zh=zh,
+                negative_prompt=editor_neg.value or DEFAULT_NEG,
+                continuity_note_en="",
+                continuity_note_zh="",
+            )
+            await run.io_bound(recorder.save_frame, frame)
+            editor_status.set_text(f"✅ 已儲存 — Session {frame.session_id}")
+            applog.log.info(f"Editor prompt saved: {frame.session_id}")
+            ui.notify("✅ 已儲存至提示詞庫", type="positive")
+
+        def do_clear():
+            editor_en.set_value("")
+            editor_zh.set_value("")
+            editor_neg.set_value(DEFAULT_NEG)
+            editor_style.set_value(DEFAULT_STYLE)
+            brief_inp.set_value("")
+            expand_status.set_text("")
+            editor_status.set_text("")
+            en_char_lbl.set_text("0 chars")
+            zh_char_lbl.set_text("0 chars")
+
+        with ui.row().classes("gap-3 mt-2"):
+            ui.button("💾 儲存至提示詞庫", icon="save", on_click=do_save_editor).classes(
+                "bg-green-600 text-white px-5 py-2 rounded-xl"
+            )
+            ui.button("📋 前往提示詞庫", icon="library_books",
+                       on_click=lambda: ui.navigate.to("/library")).classes(
+                "bg-blue-700 text-white px-5 py-2 rounded-xl"
+            )
+            ui.button("🗑 清除", icon="clear_all", on_click=do_clear).classes(
+                "bg-gray-700 text-white px-5 py-2 rounded-xl"
+            )
+
+
+# ── Page: Video Script Generator ─────────────────────────────────────────────
+
+_GENRES      = ["動作 Action", "科幻 Sci-Fi", "愛情 Romance", "恐怖 Horror",
+                "奇幻 Fantasy", "驚悚 Thriller", "喜劇 Comedy", "紀錄 Documentary",
+                "黑色電影 Noir", "冒險 Adventure", "犯罪 Crime", "超能力 Superhero"]
+_PLATFORMS   = ["Runway Gen-4", "Kling 3.0", "Veo 3", "Sora 2", "Pika 2.2",
+                "Hailuo AI", "Luma Dream Machine", "Stable Video Diffusion"]
+_VIS_STYLES  = ["Cinematic Blockbuster", "Short Film / Indie", "Music Video",
+                "Commercial / Ad", "Documentary Style", "Horror / Dark",
+                "Anime / Stylized", "Lo-Fi / Dreamy"]
+_TOTAL_DURS  = ["15s", "30s", "1min", "2min", "3min", "5min", "10min"]
+
+
+@ui.page("/videoscript")
+def page_videoscript():
+    _page_setup()
+    _sidebar()
+    with ui.column().classes("w-full max-w-5xl mx-auto p-4 gap-4"):
+        ui.label("📝 影片腳本生成器").classes("text-2xl font-bold text-white")
+        ui.label("輸入故事概念，AI 自動生成完整電影分鏡腳本（含攝影指示、導演備註、AI 生圖提示詞）")\
+            .classes("text-gray-400 text-sm")
+
+        # ── Project info ──────────────────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 p-4 gap-3"):
+            ui.label("🎬 專案設定").classes("text-lg font-semibold text-indigo-300")
+            with ui.row().classes("flex-wrap gap-3 w-full"):
+                proj_name  = ui.input(
+                    label="專案名稱 Project Name",
+                    placeholder="My Short Film",
+                ).classes("flex-1 min-w-48")
+                genre_sel  = ui.select(_GENRES,     value=_GENRES[0],     label="類型 Genre").classes("w-48")
+                plat_sel   = ui.select(_PLATFORMS,  value=_PLATFORMS[0],  label="目標平台").classes("w-44")
+                vs_sel     = ui.select(_VIS_STYLES, value=_VIS_STYLES[0], label="視覺風格").classes("w-52")
+
+        # ── Story ─────────────────────────────────────────────────────────────
+        with ui.card().classes("w-full bg-gray-800 p-4 gap-3"):
+            ui.label("📖 故事概念").classes("text-lg font-semibold text-purple-300")
+            synopsis_inp = ui.textarea(
+                label="故事大綱 Synopsis（中英均可）",
+                placeholder=(
+                    "e.g. 孤獨的駭客在廢土城市中尋找失憶的過去，最終與追殺他的 AI 展開終極對決。"
+                    "\n\nOr: A lone detective in a rain-soaked cyberpunk city unravels a conspiracy "
+                    "that threatens to erase her own memories."
+                ),
+            ).props("rows=5 outlined").classes("w-full")
+
+            with ui.row().classes("flex-wrap gap-3 w-full"):
+                tdur_sel   = ui.select(_TOTAL_DURS,   value="1min",  label="影片總時長").classes("w-32")
+                nscenes    = ui.number(label="場景數量", value=6, min=2, max=18, step=1).classes("w-28")
+                ar_sel_vs  = ui.select(ASPECT_RATIOS, value="16:9",  label="畫面比例").classes("w-28")
+                ui.label(
+                    "💡 建議：30s → 4 scenes｜1min → 6–8 scenes｜3min → 12–18 scenes"
+                ).classes("text-xs text-gray-500 self-end pb-1")
+
+        # ── Output ────────────────────────────────────────────────────────────
+        script_status    = ui.label("").classes("text-gray-400")
+        script_container = ui.column().classes("w-full gap-3")
+
+        def _render_scene_card(sc: dict) -> None:
+            """Render a single scene card."""
+            no   = sc.get("scene_no", "?")
+            dur  = sc.get("duration", "")
+            with ui.card().classes(
+                "w-full bg-gray-800 border border-gray-600 p-0 overflow-hidden"
+            ):
+                # ── scene header bar ─────────────────────────────────────────
+                with ui.row().classes(
+                    "items-center justify-between w-full bg-gray-700 px-4 py-2"
+                ):
+                    with ui.row().classes("items-center gap-3"):
+                        ui.label(f"Scene {no}").classes(
+                            "text-green-300 font-bold text-base font-mono")
+                        ui.label(sc.get("title_en", "")).classes("text-white text-sm")
+                        ui.label(sc.get("title_zh", "")).classes("text-gray-400 text-xs")
+                    if dur:
+                        ui.label(dur).classes(
+                            "text-xs text-indigo-200 bg-indigo-900 px-2 py-0.5 rounded")
+
+                with ui.column().classes("w-full p-3 gap-2"):
+                    # location + characters
+                    with ui.row().classes("gap-4 flex-wrap"):
+                        loc_en = sc.get("location_en", "")
+                        loc_zh = sc.get("location_zh", "")
+                        if loc_en:
+                            ui.label(f"📍 {loc_en}").classes("text-xs text-yellow-300 font-mono")
+                        if loc_zh:
+                            ui.label(loc_zh).classes("text-xs text-yellow-200")
+                    if sc.get("characters"):
+                        ui.label(f"👤 {sc['characters']}").classes("text-xs text-blue-300")
+
+                    ui.separator().classes("bg-gray-700")
+
+                    # action description
+                    _act_en = sc.get("action_en", "")
+                    _act_zh = sc.get("action_zh", "")
+                    with ui.row().classes("items-start gap-2 w-full"):
+                        with ui.column().classes("flex-1 gap-0.5"):
+                            ui.label(_act_en).classes("text-sm text-gray-200")
+                            ui.label(_act_zh).classes("text-sm text-gray-400")
+                        _copy_btn(lambda t=_act_en: t)
+
+                    # camera + mood row
+                    with ui.row().classes("gap-3 flex-wrap mt-1"):
+                        if sc.get("camera_movement"):
+                            ui.label(f"🎥 {sc['camera_movement']}").classes("text-xs text-purple-300")
+                        if sc.get("camera_angle"):
+                            ui.label(f"📐 {sc['camera_angle']}").classes("text-xs text-purple-200")
+                        if sc.get("mood_en"):
+                            ui.label(f"🎭 {sc['mood_en']}").classes("text-xs text-orange-300")
+                        if sc.get("mood_zh"):
+                            ui.label(f"｜{sc['mood_zh']}").classes("text-xs text-orange-200")
+
+                    # director note
+                    dn_en = sc.get("director_note_en", "")
+                    dn_zh = sc.get("director_note_zh", "")
+                    if dn_en or dn_zh:
+                        with ui.row().classes(
+                            "items-start gap-2 w-full bg-gray-900 rounded p-2 mt-1"
+                        ):
+                            ui.icon("tips_and_updates").classes("text-amber-400 text-sm mt-0.5")
+                            with ui.column().classes("flex-1 gap-0"):
+                                if dn_en:
+                                    ui.label(dn_en).classes("text-xs text-amber-300 italic")
+                                if dn_zh:
+                                    ui.label(dn_zh).classes("text-xs text-amber-200 italic")
+
+                    # dialogue / VO
+                    if sc.get("dialogue_vo"):
+                        ui.label(f"💬 {sc['dialogue_vo']}").classes(
+                            "text-xs text-teal-300 italic mt-1")
+
+                    # AI image prompt (collapsible)
+                    _img_p = sc.get("image_prompt_en", "")
+                    if _img_p:
+                        with ui.expansion("🖼 AI Image Prompt", value=False).classes(
+                            "w-full bg-gray-900 rounded mt-1"
+                        ):
+                            with ui.row().classes("items-start gap-2 w-full p-2"):
+                                ui.label(_img_p).classes(
+                                    "flex-1 text-xs text-gray-300 font-mono")
+                                _copy_btn(lambda t=_img_p: t)
+
+        async def gen_script():
+            synopsis = synopsis_inp.value.strip()
+            if not synopsis:
+                ui.notify("請輸入故事大綱", type="warning"); return
+            try:
+                config.validate_config()
+            except EnvironmentError as e:
+                ui.notify(str(e), type="negative"); return
+
+            script_container.clear()
+            n = int(nscenes.value)
+            script_status.set_text(f"⏳ AI 正在撰寫 {n} 場腳本…")
+            gen_btn.set_enabled(False)
+            try:
+                scenes = await run.io_bound(
+                    prompt_generator.generate_video_script,
+                    project_name=proj_name.value.strip() or "Untitled",
+                    synopsis=synopsis,
+                    genre=genre_sel.value,
+                    platform=plat_sel.value,
+                    total_duration=tdur_sel.value,
+                    num_scenes=n,
+                    aspect_ratio=ar_sel_vs.value,
+                    visual_style=vs_sel.value,
+                )
+                script_status.set_text(
+                    f"✅ 腳本生成完成 — {len(scenes)} 場景｜"
+                    f"{proj_name.value or 'Untitled'}｜{tdur_sel.value}"
+                )
+                with script_container:
+                    for sc in scenes:
+                        _render_scene_card(sc)
+                applog.log.info(
+                    f"Video script generated: {len(scenes)} scenes "
+                    f"project='{proj_name.value}'"
+                )
+            except Exception as exc:
+                script_status.set_text(f"❌ 生成失敗：{exc}")
+                applog.log.error(f"Video script error: {exc}", exc_info=True)
+                ui.notify(f"生成失敗：{exc}", type="negative")
+            finally:
+                gen_btn.set_enabled(True)
+
+        gen_btn = ui.button(
+            "🎬 生成腳本", icon="movie_filter", on_click=gen_script
+        ).classes("bg-purple-700 text-white text-lg px-8 py-3 rounded-xl")
+
+
 # ── Sidebar navigation ────────────────────────────────────────────────────────
 
 def _sidebar() -> None:
@@ -1132,6 +1484,8 @@ def _sidebar() -> None:
         _nav_btn("🎬 影片提示詞",  "/video",       "movie")
         _nav_btn("📷 以圖生文",    "/image2prompt","image_search")
         _nav_btn("🤖 AI 補完",     "/continue",    "auto_fix_high")
+        _nav_btn("✏️ 提示詞編輯器", "/editor",      "edit_note")
+        _nav_btn("📝 影片腳本",    "/videoscript", "movie_filter")
         _nav_btn("📋 提示詞庫",    "/library",     "library_books")
         _nav_btn("📜 操作記錄",    "/logs",        "history")
         _nav_btn("⚙ 設定",        "/settings",    "settings")

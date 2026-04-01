@@ -465,3 +465,138 @@ def generate_continuation(
 
     result["negative_prompt"] = negative_prompt
     return result
+
+
+# ---------------------------------------------------------------------------
+# Prompt Editor — expand & translate
+# ---------------------------------------------------------------------------
+
+PROMPT_EXPAND_SYSTEM_PROMPT = """You are an expert AI image prompt specialist, cinematographer, and translator.
+The user provides a brief description or incomplete prompt (any language).
+
+Your job:
+1. Expand it into a complete, vivid, detailed AI image generation prompt optimised for
+   Midjourney, Stable Diffusion, Flux, and ComfyUI.
+2. Translate and adapt it into natural, expressive Traditional Chinese.
+3. Suggest a negative prompt.
+4. Suggest comma-separated style tags.
+
+Return ONLY valid JSON (no extra text):
+{
+  "prompt_en": "detailed English prompt with photographic/cinematic style, mood, lighting, details...",
+  "prompt_zh": "詳細繁體中文提示詞，自然流暢，包含視覺細節與氛圍",
+  "negative_prompt": "blurry, low quality, watermark, deformed, ...",
+  "style_tags": "cinematic photography, 8K HDR, highly detailed, ..."
+}"""
+
+
+def expand_and_translate_prompt(brief_input: str) -> dict:
+    """Expand a brief description into full bilingual image-generation prompts."""
+    data = agent.chat(
+        system_prompt=PROMPT_EXPAND_SYSTEM_PROMPT,
+        user_prompt=f'Input: "{brief_input}"\n\nExpand into a full AI image generation prompt.',
+    )
+    return {
+        "prompt_en":       data.get("prompt_en",       brief_input),
+        "prompt_zh":       data.get("prompt_zh",       ""),
+        "negative_prompt": data.get("negative_prompt", "blurry, low quality, watermark, deformed"),
+        "style_tags":      data.get("style_tags",      "cinematic photography, highly detailed, 8k"),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Video Script / Storyboard Generator
+# ---------------------------------------------------------------------------
+
+VIDEO_SCRIPT_SYSTEM_PROMPT = """You are a professional film director, screenwriter, and AI video storyboard designer.
+You specialise in creating precise, platform-ready shooting scripts for AI video generation tools
+(Runway Gen-4, Kling 3.0, Veo 3, Sora 2, Pika, Luma Dream Machine, Hailuo AI).
+
+Given: project name, synopsis, genre, target platform, total duration, scene count, aspect ratio, visual style.
+
+Generate a complete scene-by-scene shooting script as a JSON ARRAY.
+Each element is one scene:
+[
+  {
+    "scene_no": 1,
+    "title_en": "Opening — The Wasteland",
+    "title_zh": "開場：廢土之地",
+    "location_en": "EXT. NEON CITY ROOFTOP — NIGHT",
+    "location_zh": "外景・霓虹城市屋頂・夜晚",
+    "characters": "VERA (late 20s, cyberpunk soldier, chrome arm)",
+    "action_en": "VERA stands at the roof edge, drenched trench coat whipping in gale-force wind. She surveys burning towers below, then slowly raises her chrome arm to block a debris gust.",
+    "action_zh": "VERA 站在屋頂邊緣，濕透的風衣在強風中翻飛。她俯視下方燃燒的高塔，緩緩舉起義肢手臂擋住碎片衝擊。",
+    "camera_movement": "Slow dolly forward → crane boom up to reveal city panorama",
+    "camera_angle": "Low angle tracking → aerial wide establish",
+    "duration": "5s",
+    "mood_en": "Ominous, desolate, cinematic noir",
+    "mood_zh": "不祥、荒涼、黑色電影",
+    "director_note_en": "EMOTIONAL BEAT: audience feels civilisation's weight collapsing. Her silhouette must be iconic and isolated.",
+    "director_note_zh": "核心情感：觀眾感受到文明崩潰的沉重。她的剪影必須孤立且標誌性。",
+    "image_prompt_en": "cinematic low angle shot of cyberpunk female soldier on skyscraper rooftop, rain-soaked trench coat, chrome prosthetic arm, burning neon city below, volumetric fog, dramatic rim light, 16:9, photorealistic, Blade Runner aesthetic, 8K HDR",
+    "dialogue_vo": ""
+  }
+]
+
+Rules:
+1. Each scene must be a distinct, visually compelling emotional beat.
+2. Distribute total_duration proportionally (durations should roughly sum to total).
+3. Build a clear narrative arc: setup → rising tension → climax → resolution.
+4. camera_movement must be feasible for the target platform.
+5. image_prompt_en must be paste-ready with full style/technical tags — suitable for Midjourney or SD.
+6. dialogue_vo: max one sentence; leave empty string if scene is silent/visual-only.
+7. Return ONLY the JSON array. No markdown fences, no extra prose."""
+
+
+def generate_video_script(
+    project_name: str,
+    synopsis: str,
+    genre: str = "動作 Action",
+    platform: str = "Runway Gen-4",
+    total_duration: str = "1min",
+    num_scenes: int = 6,
+    aspect_ratio: str = "16:9",
+    visual_style: str = "Cinematic Blockbuster",
+) -> list:
+    """Generate a scene-by-scene shooting script / storyboard.
+
+    Returns:
+        List of scene dicts (scene_no, title_en/zh, location, action, camera,
+        duration, mood, director_note, image_prompt_en, dialogue_vo).
+    """
+    user_prompt = (
+        f"Project: {project_name}\n"
+        f"Genre: {genre}\n"
+        f"Target platform: {platform}\n"
+        f"Visual style: {visual_style}\n"
+        f"Aspect ratio: {aspect_ratio}\n"
+        f"Total duration: {total_duration}\n"
+        f"Number of scenes: {num_scenes}\n"
+        f"Synopsis:\n{synopsis}\n\n"
+        f"Generate exactly {num_scenes} scenes that cover the full story arc. "
+        f"Total clip durations should sum to approximately {total_duration}."
+    )
+
+    # agent.chat parses JSON (including arrays); may return list or dict
+    result = agent.chat(system_prompt=VIDEO_SCRIPT_SYSTEM_PROMPT, user_prompt=user_prompt)
+
+    # If it returned a list directly
+    if isinstance(result, list):
+        return result
+
+    # If wrapped in a key
+    if isinstance(result, dict):
+        for key in ("scenes", "script", "storyboard", "data"):
+            if isinstance(result.get(key), list):
+                return result[key]
+
+    # Fallback: single error scene
+    return [{
+        "scene_no": 1, "title_en": "Parse Error", "title_zh": "解析錯誤",
+        "location_en": "", "location_zh": "", "characters": "",
+        "action_en": f"AI returned unexpected format: {str(result)[:300]}",
+        "action_zh": "AI 回傳格式異常，請重試",
+        "camera_movement": "", "camera_angle": "", "duration": "",
+        "mood_en": "", "mood_zh": "", "director_note_en": "",
+        "director_note_zh": "", "image_prompt_en": "", "dialogue_vo": "",
+    }]
